@@ -1,0 +1,142 @@
+[
+  {
+    "id": "01",
+    "title": "Live at Amnesia Ibiza",
+    "by": "DJ Alfredo",
+    "year": 1989,
+    "bpm": 125,
+    "dur": "61:09",
+    "url": "https://api.grove.storage/d7c8f4cbdb0a0fb8658a74d33aa8ac3f7beb7ec0a1b6dcd65d660d1d4b57a10c",
+    "genre": "BALEARIC"
+  },
+  {
+    "id": "02",
+    "title": "Live at Fantazia Summertime",
+    "by": "Ratpack",
+    "year": 1992,
+    "bpm": 130,
+    "dur": "45:33",
+    "url": "https://api.grove.storage/568134352938ec1583932f0ab24cdc621864c598ef9dc50052d99d432c07c296",
+    "genre": "JUNGLE"
+  },
+  {
+    "id": "03",
+    "title": "Live at Tribal Party",
+    "by": "Daft Punk",
+    "year": 1997,
+    "bpm": 132,
+    "dur": "98:07",
+    "url": "https://api.grove.storage/b67e08234651d84e635cc3fc3a37a48e9dc8e93aeb669397b21ec5223db59dbd",
+    "genre": "FRENCH HOUSE"
+  },
+  {
+    "id": "04",
+    "title": "Live at Fuse In Festival",
+    "by": "Richie Hawtin",
+    "year": 2005,
+    "bpm": 140,
+    "dur": "1:26:23",
+    "url": "https://api.grove.storage/0c71da80d1b02e54200a98625a5b1edabcce57770dbdcf97f2f518ad46a4e3bf",
+    "genre": "TECHNO"
+  },
+  {
+    "id": "05",
+    "title": "Live at Circoloco Ibiza DC10",
+    "by": "Tania Vulcano",
+    "year": 2006,
+    "bpm": 128,
+    "dur": "1:40:00",
+    "url": "https://api.grove.storage/0368f38ff0abaf653c4106e375c9d7abba15bcb69571b12e5ac12791713b764e",
+    "genre": "MINIMAL"
+  },
+  {
+    "id": "06",
+    "title": "Live at SynkLab",
+    "by": "Gesaffelstein b2b The Hacker",
+    "year": 2010,
+    "bpm": 132,
+    "dur": "2:12:27",
+    "url": "https://api.grove.storage/0d4ddbe6a252ec33e2b31a8781f3e4eece13108a5f731c0aab12a33899f75ac7",
+    "genre": "EBM"
+  },
+  {
+    "id": "07",
+    "title": "Live at Netherlands",
+    "by": "Avicii",
+    "year": 2011,
+    "bpm": 128,
+    "dur": "1:29:06",
+    "url": "https://api.grove.storage/0f617d51c8b872ee96f5877c5ef6a8594c8f7e7002d06855a499e4116c0ba4b1",
+    "genre": "EDM"
+  },
+  {
+    "id": "08",
+    "title": "Live at France",
+    "by": "Justice",
+    "year": 2012,
+    "bpm": 124,
+    "dur": "2:00:22",
+    "url": "https://api.grove.storage/f155714d8c54bb11c149b1b17071070ec81147ee4f2f298f5880150d27c4f682",
+    "genre": "ELECTRO"
+  },
+  {
+    "id": "09",
+    "title": "Live at NYC",
+    "by": "MSTRKRFT",
+    "year": 2014,
+    "bpm": 128,
+    "dur": "58:03",
+    "url": "https://api.grove.storage/77c0f3810205a31eb7333ef9f06ba437bfd376faeb0a2b265dabbbfe3c0e3944",
+    "genre": "BLOG HOUSE"
+  },
+  {
+    "id": "10",
+    "title": "Live at UK",
+    "by": "My Nu Leng",
+    "year": 2015,
+    "bpm": 135,
+    "dur": "56:07",
+    "url": "https://api.grove.storage/5a945bcedb81f39cc0947718abbc75d2cdc2ef63e5e29e8cb076a4850d4223cd",
+    "genre": "UK BASS"
+  },
+  {
+    "id": "11",
+    "title": "Live at NYC",
+    "by": "Sienna Sleep",
+    "year": 2020,
+    "bpm": 122,
+    "dur": "31:51",
+    "url": "https://api.grove.storage/c018410e4d5ca6284f77634465d0c37fe5f92d06c46d70b9a09e588286f687f7",
+    "genre": "DOWNTEMPO"
+  },
+  {
+    "id": "12",
+    "title": "Live at Bangface Weekender",
+    "by": "Evian Christ",
+    "year": 2022,
+    "bpm": 145,
+    "dur": "57:45",
+    "url": "https://api.grove.storage/c51ff459d2f2c169ceb0a6320c405ea4f47891c5697482e8dbecaac3abd64018",
+    "genre": "RAVE"
+  },
+  {
+    "id": "13",
+    "title": "Live at Lido Festival",
+    "by": "Skrillex b2b Jamie XX Lido Festival",
+    "year": 2025,
+    "bpm": 140,
+    "dur": "1:15:37",
+    "url": "https://api.grove.storage/d7e897a6b2eacb49ec1e8280382dd25198ceededa5db03f59f6e0058631f9aeb",
+    "genre": "BASS"
+  },
+  {
+    "id": "14",
+    "title": "Live at London",
+    "by": "Fred again.. b2b Thomas Bangalter",
+    "year": 2026,
+    "bpm": 130,
+    "dur": "1:56:23",
+    "url": "https://api.grove.storage/92874419197836cac95e6d496f38bc38f86e785fffafe4b8b389f714fee06742",
+    "genre": "ELECTRONIC"
+  }
+]

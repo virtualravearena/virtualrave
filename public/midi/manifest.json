@@ -1,0 +1,82 @@
+[
+  {
+    "id": "g-force-siren",
+    "title": "G-Force Siren",
+    "file": "01-g-force-siren.mid",
+    "bpm": 140,
+    "steps": 32,
+    "range": "G1-A#5"
+  },
+  {
+    "id": "sub-zero-bender",
+    "title": "Sub Zero Bender",
+    "file": "02-sub-zero-bender.mid",
+    "bpm": 140,
+    "steps": 32,
+    "range": "C1-A#5"
+  },
+  {
+    "id": "circuit-crawl",
+    "title": "Circuit Crawl",
+    "file": "03-circuit-crawl.mid",
+    "bpm": 140,
+    "steps": 41,
+    "range": "C2-C4"
+  },
+  {
+    "id": "pressure-drop",
+    "title": "Pressure Drop",
+    "file": "04-pressure-drop.mid",
+    "bpm": 140,
+    "steps": 41,
+    "range": "C2-C4"
+  },
+  {
+    "id": "acid-ratchet",
+    "title": "Acid Ratchet",
+    "file": "05-acid-ratchet.mid",
+    "bpm": 140,
+    "steps": 48,
+    "range": "C2-C4"
+  },
+  {
+    "id": "chrome-stepper",
+    "title": "Chrome Stepper",
+    "file": "06-chrome-stepper.mid",
+    "bpm": 140,
+    "steps": 48,
+    "range": "C2-C4"
+  },
+  {
+    "id": "two-note-panic",
+    "title": "Two Note Panic",
+    "file": "07-two-note-panic.mid",
+    "bpm": 140,
+    "steps": 48,
+    "range": "C2-C3"
+  },
+  {
+    "id": "highwire-acid",
+    "title": "Highwire Acid",
+    "file": "08-highwire-acid.mid",
+    "bpm": 140,
+    "steps": 37,
+    "range": "C2-C4"
+  },
+  {
+    "id": "sub-basement",
+    "title": "Sub Basement",
+    "file": "09-sub-basement.mid",
+    "bpm": 140,
+    "steps": 41,
+    "range": "C1-C3"
+  },
+  {
+    "id": "minimal-spark",
+    "title": "Minimal Spark",
+    "file": "10-minimal-spark.mid",
+    "bpm": 140,
+    "steps": 29,
+    "range": "C2-C4"
+  }
+]
