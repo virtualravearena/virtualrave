@@ -134,6 +134,7 @@ export function MintCeremony({ open, act, ctx, buttonRect, onClose, liveLog }: M
   const [mounted, setMounted] = useState(false);
   const [audio, setAudio] = useState<MintAudioController | null>(null);
   const [muted, setMuted] = useState(false);
+  const [runId, setRunId] = useState(0);
   const [tick, setTick] = useState<BeatTick>({
     ctxTime: 0,
     beat: 0,
@@ -143,11 +144,31 @@ export function MintCeremony({ open, act, ctx, buttonRect, onClose, liveLog }: M
     totalBeats: 0,
   });
   const startedRef = useRef(false);
+  const wasOpenRef = useRef(false);
+  const dragY = useMotionValue(0);
+  const stubOpacity = useTransform(dragY, [0, 80, 200], [1, 1, 0]);
+  const tearAngle = useTransform(dragY, [0, 200], [0, 12]);
 
   useEffect(() => {
     setMounted(true);
     setMuted(getStoredMute());
   }, []);
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setRunId((id) => id + 1);
+      setTick({
+        ctxTime: 0,
+        beat: 0,
+        bar: 0,
+        step: 0,
+        phase: 0,
+        totalBeats: 0,
+      });
+      dragY.set(0);
+    }
+    wasOpenRef.current = open;
+  }, [open, dragY]);
 
   // boot audio when ceremony opens
   useEffect(() => {
@@ -204,11 +225,6 @@ export function MintCeremony({ open, act, ctx, buttonRect, onClose, liveLog }: M
     audio?.setMuted(next);
   }
 
-  // Tearable ticket stub
-  const dragY = useMotionValue(0);
-  const stubOpacity = useTransform(dragY, [0, 80, 200], [1, 1, 0]);
-  const tearAngle = useTransform(dragY, [0, 200], [0, 12]);
-
   function handleTearEnd() {
     if (dragY.get() > 90) {
       onClose();
@@ -247,6 +263,7 @@ export function MintCeremony({ open, act, ctx, buttonRect, onClose, liveLog }: M
             transition={{ duration: 0.6, ease: [0.85, 0, 0.15, 1] }}
           >
             <Scene
+              key={`scene-${runId}`}
               act={act}
               beatPhase={tick.phase}
               totalBeats={tick.totalBeats}
