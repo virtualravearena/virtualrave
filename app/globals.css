@@ -2228,6 +2228,41 @@ body::after {
   border: 1.5px solid var(--vr-black);
   background: var(--vr-yellow);
   font-family: var(--term); font-size: 18px;
+  overflow: hidden;
+}
+.modal .opt .name .ic .wallet-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.modal .opt .name .ic .wallet-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--term);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.modal__zerion {
+  border-top: 1px solid var(--vr-line-soft);
+  background:
+    linear-gradient(135deg, rgba(31, 51, 255, 0.14), rgba(255, 232, 0, 0.22)),
+    var(--vr-cloud);
+}
+.modal__zerion:hover {
+  background:
+    linear-gradient(135deg, rgba(31, 51, 255, 0.2), rgba(255, 232, 0, 0.32)),
+    var(--vr-yellow);
+}
+.modal__zerion-ic {
+  background: #101420;
+  color: #f4f6ff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .modal .opt .arr { font-family: var(--term); font-size: 22px; }
 

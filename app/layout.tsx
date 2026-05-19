@@ -30,6 +30,7 @@ const virtualCali = localFont({
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "VIRTUAL RAVE",
   description: "For the culture.",
   icons: {
@@ -45,7 +46,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "VIRTUAL RAVE",
     description: "For the culture.",
-    images: [{ url: "/logo.webp", width: 1938, height: 670, alt: "VIRTUAL RAVE" }],
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "VIRTUAL RAVE" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VIRTUAL RAVE",
+    description: "For the culture.",
+    images: ["/logo.png"],
   },
 };
 

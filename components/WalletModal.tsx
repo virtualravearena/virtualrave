@@ -16,13 +16,60 @@ export function WalletModal({
   onOrbLogout,
 }: WalletModalProps) {
   const { connect, connectors } = useConnect();
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-  const walletIcons: Record<string, string> = {
-    injected: "",
-    walletConnect: "",
-    metaMask: "",
-    coinbaseWallet: "",
+  const openZerion = (uri: string) => {
+    const deeplink = `zerion://wc?uri=${encodeURIComponent(uri)}`;
+    window.location.assign(deeplink);
   };
+
+  const connectWithMobileWalletConnect = async (connector: (typeof connectors)[number]) => {
+    const onMessage = (message: { uid: string; type: string; data?: unknown }) => {
+      if (message.type !== "display_uri" || typeof message.data !== "string") return;
+      openZerion(message.data);
+    };
+
+    connector.emitter.on("message", onMessage);
+    try {
+      const connection = connect({ connector });
+      onClose();
+      await connection;
+    } finally {
+      connector.emitter.off("message", onMessage);
+    }
+  };
+
+  const renderConnectorIcon = (connector: (typeof connectors)[number]) => {
+    if (connector.icon) {
+      return <img className="wallet-icon" src={connector.icon} alt="" aria-hidden="true" />;
+    }
+
+    const label =
+      connector.id === "walletConnect"
+        ? "WC"
+        : connector.name
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
+
+    return <span className="wallet-fallback">{label}</span>;
+  };
+
+  const handleConnectorClick = (connector: (typeof connectors)[number]) => {
+    if (isMobile && connector.id === "walletConnect") {
+      void connectWithMobileWalletConnect(connector);
+      return;
+    }
+
+    void connect({ connector });
+    onClose();
+  };
+
+  const walletConnectConnector = connectors.find((connector) => connector.id === "walletConnect") ?? null;
 
   return (
     <div className="modal-back" onClick={onClose}>
@@ -44,21 +91,32 @@ export function WalletModal({
           onAuthSuccess={onClose}
         />
         <div className="modal__label">
-          then choose your wallet  lens network
+          then choose your wallet. on mobile, walletconnect can hand off to zerion.
         </div>
+        {isMobile && walletConnectConnector && (
+          <div
+            className="opt modal__zerion"
+            onClick={() => handleConnectorClick(walletConnectConnector)}
+          >
+            <span className="name">
+              <span className="ic modal__zerion-ic" aria-hidden="true">
+                Z
+              </span>
+              Zerion Wallet
+            </span>
+            <span className="arr"></span>
+          </div>
+        )}
         <div className="modal__wallets">
           {connectors.map((connector) => (
             <div
               key={connector.uid}
               className="opt"
-              onClick={() => {
-                connect({ connector });
-                onClose();
-              }}
+              onClick={() => handleConnectorClick(connector)}
             >
               <span className="name">
                 <span className="ic">
-                  {walletIcons[connector.id] ?? ""}
+                  {renderConnectorIcon(connector)}
                 </span>
                 {connector.name}
               </span>

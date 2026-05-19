@@ -2,11 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MintCeremony, type CeremonyContext, type CeremonyAct } from "./MintCeremony";
+import { RealMintCeremony } from "./RealMintCeremony";
 
 interface PreviewState {
   open: boolean;
   act: CeremonyAct;
   ctx: CeremonyContext;
+  buttonRect: DOMRect | null;
+}
+
+interface RealPreviewState {
+  open: boolean;
+  txHash: `0x${string}` | null;
+  totalClaimedAfter: number | null;
+  simulatedReceipt: {
+    ok: boolean;
+    error?: boolean;
+    blockNumber?: number | null;
+  };
+  liveLog: string[];
   buttonRect: DOMRect | null;
 }
 
@@ -40,17 +54,18 @@ export function CeremonyPreviewButton() {
   const [forceError, setForceError] = useState(false);
   const [withLens, setWithLens] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [realState, setRealState] = useState<RealPreviewState>({
+    open: false,
+    txHash: null,
+    totalClaimedAfter: null,
+    simulatedReceipt: { ok: false, blockNumber: null },
+    liveLog: [],
+    buttonRect: null,
+  });
   const btnRef = useRef<HTMLButtonElement>(null);
   const timersRef = useRef<number[]>([]);
 
-  // Only render in non-prod OR when ?ceremony=1 is in URL
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const isDev = process.env.NODE_ENV !== "production";
-    const isPreviewParam = window.location.search.includes("ceremony=1");
-    setVisible(isDev || isPreviewParam);
-  }, []);
+  const visible = process.env.NODE_ENV !== "production";
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));
@@ -124,7 +139,61 @@ export function CeremonyPreviewButton() {
   const close = useCallback(() => {
     clearTimers();
     setState((s) => ({ ...s, open: false }));
+    setRealState((s) => ({ ...s, open: false }));
   }, [clearTimers]);
+
+  const startRealReceiptCeremony = useCallback(() => {
+    clearTimers();
+    const rect = btnRef.current?.getBoundingClientRect() ?? null;
+    const hash = "0x9f3a2be1c7d44e08a155f02c19a8b3f7e612d04a8c91be2f773d50a8b1ce72e1";
+
+    setState((s) => ({ ...s, open: false }));
+    setRealState({
+      open: true,
+      txHash: null,
+      totalClaimedAfter: null,
+      simulatedReceipt: { ok: false, blockNumber: null },
+      liveLog: [],
+      buttonRect: rect,
+    });
+    setPanelOpen(false);
+
+    const hashId = window.setTimeout(() => {
+      setRealState((s) => ({
+        ...s,
+        txHash: hash,
+        liveLog: [...s.liveLog, "local_chain  tx hash broadcast"],
+      }));
+    }, 700);
+    timersRef.current.push(hashId);
+
+    const receiptDelay = slowChain ? 9000 : 2400;
+    const receiptId = window.setTimeout(() => {
+      setRealState((s) => ({
+        ...s,
+        simulatedReceipt: {
+          ok: !forceError,
+          error: forceError,
+          blockNumber: forceError ? null : 13245678,
+        },
+        liveLog: [
+          ...s.liveLog,
+          forceError ? "local_chain  receipt error" : "local_chain  receipt confirmed block 13245678",
+        ],
+      }));
+    }, receiptDelay);
+    timersRef.current.push(receiptId);
+
+    const totalId = window.setTimeout(() => {
+      if (forceError) return;
+      setRealState((s) => ({
+        ...s,
+        totalClaimedAfter: 58,
+        liveLog: [...s.liveLog, "contract.totalClaimed  58"],
+      }));
+    }, receiptDelay + 500);
+    timersRef.current.push(totalId);
+  }, [clearTimers, forceError, slowChain]);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
@@ -173,6 +242,9 @@ export function CeremonyPreviewButton() {
                 </button>
               </div>
             </div>
+            <button className="mc-preview-run mc-preview-run--wide" onClick={startRealReceiptCeremony}>
+              run live receipt sim
+            </button>
             <label className="mc-preview-check">
               <input type="checkbox" checked={slowChain} onChange={(e) => setSlowChain(e.target.checked)} />
               <span>fake slow chain (act 2 × 14s)</span>
@@ -197,6 +269,28 @@ export function CeremonyPreviewButton() {
         act={state.act}
         ctx={state.ctx}
         buttonRect={state.buttonRect}
+        onClose={close}
+      />
+      <RealMintCeremony
+        open={realState.open}
+        wallet="0x9f2acd17e8b3c4f50d6a78bc1ef902a334d57c91"
+        orbSession={withLens ? {
+          account: "0x303feeD7e375080e9dBF16e6DD214122BA31A6bd",
+          userId: "0x303feeD7e375080e9dBF16e6DD214122BA31A6bd",
+          handle: "sargent.lens",
+          processed: true,
+          status: "SUCCESS",
+          accessToken: "preview",
+          raw: {},
+        } : null}
+        lensAddress={withLens ? "0x303feeD7e375080e9dBF16e6DD214122BA31A6bd" : null}
+        txHash={realState.txHash}
+        totalClaimedAfter={realState.totalClaimedAfter}
+        errored={forceError && realState.simulatedReceipt.error === true}
+        errorMessage={forceError ? "test error: simulated receipt failure" : null}
+        buttonRect={realState.buttonRect}
+        liveLog={realState.liveLog}
+        simulatedReceipt={realState.simulatedReceipt}
         onClose={close}
       />
     </>
