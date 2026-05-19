@@ -26,6 +26,12 @@ export interface RealMintCeremonyProps {
   buttonRect: DOMRect | null;
   /** Real chain stream (debug log entries from the parent). */
   liveLog?: string[];
+  /** Dev-only receipt override for ceremony timing tests without spending GHO. */
+  simulatedReceipt?: {
+    ok: boolean;
+    error?: boolean;
+    blockNumber?: number | null;
+  };
   /** Called when the user dismisses the ceremony (ticket tear or close). */
   onClose: () => void;
 }
@@ -52,6 +58,7 @@ export function RealMintCeremony({
   errorMessage,
   buttonRect,
   liveLog,
+  simulatedReceipt,
   onClose,
 }: RealMintCeremonyProps) {
   const publicClient = usePublicClient({ chainId: lensMainnet.id });
@@ -60,13 +67,19 @@ export function RealMintCeremony({
   const [confirmBlocks, setConfirmBlocks] = useState<number | null>(null);
   const txHashSetAt = useRef<number | null>(null);
   const receiptHandledAt = useRef<number | null>(null);
+  const dropTimerStarted = useRef(false);
 
-  const { data: receipt, isSuccess: receiptOk, isError: receiptErr } =
+  const { data: chainReceipt, isSuccess: chainReceiptOk, isError: chainReceiptErr } =
     useWaitForTransactionReceipt({
       hash: txHash ?? undefined,
       chainId: lensMainnet.id,
       confirmations: 1,
     });
+  const receipt = simulatedReceipt?.blockNumber
+    ? { blockNumber: BigInt(simulatedReceipt.blockNumber) }
+    : chainReceipt;
+  const receiptOk = simulatedReceipt ? simulatedReceipt.ok : chainReceiptOk;
+  const receiptErr = simulatedReceipt?.error ?? chainReceiptErr;
 
   // ---- Block-by-block telemetry while waiting for the receipt ----
   useEffect(() => {
@@ -87,6 +100,8 @@ export function RealMintCeremony({
     }
     if (!txHash) {
       txHashSetAt.current = null;
+      receiptHandledAt.current = null;
+      dropTimerStarted.current = false;
     }
   }, [txHash]);
 
@@ -113,6 +128,9 @@ export function RealMintCeremony({
 
     // Receipt confirmed → after Act 1 minimum elapsed, jump to Act 3 (drop)
     if (receiptOk) {
+      if (dropTimerStarted.current) return;
+      dropTimerStarted.current = true;
+
       const since = txHashSetAt.current ? performance.now() - txHashSetAt.current : 0;
       const minWait = ACT1_MIN_MS;
       if (receiptHandledAt.current === null) {
@@ -123,8 +141,15 @@ export function RealMintCeremony({
         // long enough to honor the choreography, then advance to drop.
         const wait = minWait - since;
         setAct(2);
-        const id = window.setTimeout(() => setAct(3), wait);
-        return () => window.clearTimeout(id);
+        let act4Id: number | null = null;
+        const id = window.setTimeout(() => {
+          setAct(3);
+          act4Id = window.setTimeout(() => setAct(4), ACT3_LEN_MS);
+        }, wait);
+        return () => {
+          window.clearTimeout(id);
+          if (act4Id !== null) window.clearTimeout(act4Id);
+        };
       }
       // Already past the minimum — go to drop now
       setAct(3);
