@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createOrbLogin } from "@orbclub/modules/auth";
 import type { QrConnectResult } from "@orbclub/modules/auth/qr";
+import { orbLogin } from "@/lib/orbLogin";
 
 export type OrbSession = QrConnectResult & {
   account: string | null;
@@ -33,7 +33,7 @@ function getStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-const orb = createOrbLogin();
+const orb = orbLogin;
 
 // ----- Encrypted-hex noise (0x202AC1D repeating, with block-glyph glitches) -
 const CIPHER = "0x202AC1D";

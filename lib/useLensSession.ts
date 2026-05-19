@@ -6,9 +6,9 @@ import { getAddress, isAddress } from "viem";
 import { InMemoryStorageProvider } from "@lens-protocol/storage";
 import { PublicClient, evmAddress, mainnet, type SessionClient } from "@lens-protocol/client";
 import { signMessageWith } from "@lens-protocol/client/viem";
-import { createOrbLogin } from "@orbclub/modules/auth";
 import { lensMainnet } from "./wagmi";
 import { getLensPublicClient, LENS_APP_ID } from "./lensClient";
+import { orbLogin } from "./orbLogin";
 import type { OrbSession } from "@/components/OrbLoginPanel";
 
 type LensSessionStatus = "idle" | "authenticating" | "authenticated" | "error";
@@ -31,7 +31,7 @@ function errorMessage(err: unknown): string {
   }
 }
 
-const orb = createOrbLogin();
+const orb = orbLogin;
 
 function getStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
