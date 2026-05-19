@@ -8,6 +8,7 @@ import {
   useBalance,
   usePublicClient,
   useWriteContract,
+  useSwitchChain,
 } from "wagmi";
 import { createPublicClient, getAddress, http, isAddress, type Address } from "viem";
 import { mainnet as ethMainnet } from "viem/chains";
@@ -224,10 +225,11 @@ function getOrbWalletAddress(session: OrbSession | null): Address | null {
 }
 
 export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient({ chainId: lensMainnet.id });
   const publicClient = usePublicClient({ chainId: lensMainnet.id });
   const { writeContractAsync } = useWriteContract();
+  const { switchChainAsync } = useSwitchChain();
   const { sessionClient, status: lensStatus, login: lensLogin } = useLensSession(orbSession);
   const [qty, setQty] = useState(1);
   const [mintDestination, setMintDestination] = useState<MintDestination>(
@@ -376,6 +378,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       mintDestination,
       paymentSource,
       lensChainId: lensMainnet.id,
+      connectedChainId: chainId ?? null,
       connectedWallet: address ?? null,
       isConnected,
       hasWalletClient: Boolean(walletClient),
@@ -423,12 +426,32 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       });
       return;
     }
-    if (paymentSource === "eoa" && (!isConnected || !walletClient)) {
+    if (paymentSource === "eoa" && !isConnected) {
       appendDebug("blocked: missing connected EOA wallet, opening connect modal", {
         isConnected,
         hasWalletClient: Boolean(walletClient),
       });
       onConnect();
+      return;
+    }
+    if (paymentSource === "eoa" && chainId !== lensMainnet.id) {
+      setTxStatus("busy");
+      setStep("SWITCH TO LENS...");
+      appendDebug("connected wallet is on the wrong chain, requesting Lens switch", {
+        connectedChainId: chainId ?? null,
+        requiredChainId: lensMainnet.id,
+        hasWalletClient: Boolean(walletClient),
+      });
+      try {
+        await switchChainAsync({ chainId: lensMainnet.id });
+        appendDebug("Lens chain switch requested successfully");
+        setTxStatus("idle");
+        setStep("Lens network ready. Claim again.");
+      } catch (err) {
+        setTxStatus("error");
+        setStep("Switch wallet to Lens network.");
+        appendDebug("Lens chain switch failed", toDebugValue(err));
+      }
       return;
     }
     if (txStatus === "busy") {
