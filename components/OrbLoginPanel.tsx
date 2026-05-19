@@ -210,7 +210,7 @@ export function OrbLoginPanel({
 }: OrbLoginPanelProps) {
   const [status, setStatus] = useState<OrbStatus>(session ? "authenticated" : "idle");
   const [message, setMessage] = useState(
-    session ? "Orb session ready." : "Tune in. Scan with Orb to mint on your Lens profile."
+    session ? "Orb session ready." : "Tune in. Scan with Orb to collect on your Lens profile."
   );
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [deepLink, setDeepLink] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export function OrbLoginPanel({
       setError(null);
     } else if (status === "authenticated") {
       setStatus("idle");
-      setMessage("Tune in. Scan with Orb to mint on your Lens profile.");
+      setMessage("Tune in. Scan with Orb to collect on your Lens profile.");
       setJustAuthed(false);
     }
   }, [session, status]);
@@ -300,7 +300,7 @@ export function OrbLoginPanel({
     controllerRef.current?.abort();
     controllerRef.current = null;
     setStatus(session ? "authenticated" : "idle");
-    setMessage(session ? "Orb session ready." : "Tune in. Scan with Orb to mint on your Lens profile.");
+    setMessage(session ? "Orb session ready." : "Tune in. Scan with Orb to collect on your Lens profile.");
     setQrCode(null);
     setDeepLink(null);
     setError(null);
@@ -322,7 +322,7 @@ export function OrbLoginPanel({
       <div className="orb-login__head">
         <div>
           <div className="orb-login__tag">ORB LOGIN  OPTIONAL</div>
-          <strong>{session ? "lens profile ready" : "for lens profile mint"}</strong>
+          <strong>{session ? "lens profile ready" : "for lens profile collect"}</strong>
         </div>
         <span className={`orb-login__status orb-login__status--${status}`}>
           {status}

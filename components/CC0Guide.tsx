@@ -180,9 +180,9 @@ const CATALOG: { Ico: (p: React.SVGProps<SVGSVGElement>) => ReactNode; head: str
     Ico: I.Laptop,
     head: "DIGITAL & WEB",
     items: [
-      { label: "NFT SETS", img: "/assets/cc0/cat-nft.png" },
+      { label: "EDITION SETS", img: "/assets/cc0/cat-nft.png" },
       { label: "3D / VR", img: "/assets/cc0/cat-3d.png" },
-      { label: "DAO SITES", img: "/assets/cc0/cat-dao.png" },
+      { label: "ON-CHAIN SITES", img: "/assets/cc0/cat-dao.png" },
     ],
   },
   {
@@ -363,7 +363,7 @@ export function CC0Guide() {
               <I.Lock width={18} height={18} /> WHAT IT DOES NOT DO
             </div>
             <div className="cc0g__cat-row cc0g__cat-row--3">
-              <Slot src="/store/nodao.webp" alt="No DAO voting" label="No DAO voting." />
+              <Slot src="/store/nodao.webp" alt="No governance voting" label="No governance voting." />
               <Slot src="/store/nowhale.webp" alt="No proposals" label="No proposals." />
               <Slot src="/store/notoken.webp" alt="No token parliament" label="No token parliament." />
             </div>

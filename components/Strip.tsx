@@ -1,6 +1,6 @@
 "use client";
 export function Strip({ alt }: { alt?: boolean }) {
-  const phrase = "VR 303    303 EDITIONS    1 GHO ON LENS    CC0 ARTWORK    CLAIM YOURS    ";
+  const phrase = "VR 303    303 EDITIONS    1 GHO ON LENS    CC0 ARTWORK    COLLECT YOURS    ";
   const list = Array.from({ length: 6 }, () => phrase).join(" ");
   return (
     <div className={`strip ${alt ? "strip--alt" : ""}`}>

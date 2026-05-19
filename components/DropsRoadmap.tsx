@@ -32,7 +32,7 @@ const drops: Drop[] = [
       ["FILTER", "18dB/oct resonant LP"],
       ["RELEASE", "1981  79,800"],
       ["DISCONTINUED", "1984"],
-      ["SUPPLY", "303 NFTs  LENS"],
+      ["SUPPLY", "303 EDITIONS  LENS"],
       ["PRICE", "1 GHO EACH"],
     ],
     img: "/assets/tb303.jpg",
@@ -49,7 +49,7 @@ const drops: Drop[] = [
       ["SEQUENCER", "64-step, 96 PPQN"],
       ["RELEASE", "1983  150,000"],
       ["DISCONTINUED", "1985"],
-      ["SUPPLY", "909 NFTs  BASE"],
+      ["SUPPLY", "909 EDITIONS  BASE"],
       ["PRICE", "TBA"],
     ],
     img: "/assets/tb303.jpg",
@@ -66,7 +66,7 @@ const drops: Drop[] = [
       ["BASS DRUM", "tuneable sub boom"],
       ["RELEASE", "1980  150,000"],
       ["DISCONTINUED", "1983"],
-      ["SUPPLY", "808 NFTs  MEGA ETH"],
+      ["SUPPLY", "808 EDITIONS  MEGA ETH"],
       ["PRICE", "TBA"],
     ],
     img: "/assets/tb303.jpg",
@@ -83,7 +83,7 @@ const drops: Drop[] = [
       ["SEQUENCER", "64-step, MIDI sync"],
       ["RELEASE", "1985  69,800"],
       ["DISCONTINUED", "1987"],
-      ["SUPPLY", "707 NFTs  SONEIUM"],
+      ["SUPPLY", "707 EDITIONS  SONEIUM"],
       ["PRICE", "TBA"],
     ],
     img: "/assets/tb303.jpg",
@@ -100,7 +100,7 @@ const drops: Drop[] = [
       ["POWER", "battery + DC adapter"],
       ["RELEASE", "1981  34,800"],
       ["DISCONTINUED", "1984"],
-      ["SUPPLY", "606 NFTs  ABSTRACT"],
+      ["SUPPLY", "606 EDITIONS  ABSTRACT"],
       ["PRICE", "TBA"],
     ],
     img: "/assets/tb303.jpg",
@@ -117,7 +117,7 @@ const drops: Drop[] = [
       ["MIDI", "in / out / thru"],
       ["RELEASE", "1986  49,800"],
       ["DISCONTINUED", "1988"],
-      ["SUPPLY", "505 NFTs  HYPERLIQUID"],
+      ["SUPPLY", "505 EDITIONS  HYPERLIQUID"],
       ["PRICE", "TBA"],
     ],
     img: "/assets/tb303.jpg",
@@ -370,7 +370,7 @@ function DropModal({ d, onClose }: { d: Drop; onClose: () => void }) {
                 LIVE NOW
               </div>
               <a href="#claim" className="dm__cta-btn" onClick={onClose}>
-                CLAIM VR303
+                COLLECT VR303
                 <span className="dm__cta-arr"></span>
               </a>
             </div>
@@ -438,7 +438,7 @@ export function DropsRoadmap() {
             </div>
 
             <div className="drops__credo">
-              <span className="drops__credo-line">Virtual Rave expands across multiple chains under one shared universe.</span>
+              <span className="drops__credo-line">Virtual Rave is a distributed network connecting real-world rave culture through on-chain infrastructure.</span>
               <span className="drops__credo-line drops__credo-line--accent">
                 different drops · different chains · <em>same culture</em>.
               </span>

@@ -65,7 +65,7 @@ export function CeremonyPreviewButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const timersRef = useRef<number[]>([]);
 
-  const visible = process.env.NODE_ENV !== "production";
+  const visible = process.env.NEXT_PUBLIC_VR303_CHAIN_MODE === "local";
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));
@@ -255,7 +255,7 @@ export function CeremonyPreviewButton() {
             </label>
             <label className="mc-preview-check">
               <input type="checkbox" checked={withLens} onChange={(e) => setWithLens(e.target.checked)} />
-              <span>minted via orb / lens profile</span>
+              <span>collected via orb / lens profile</span>
             </label>
             <div className="mc-preview-panel__hint">
               press M to mute · Esc to abort

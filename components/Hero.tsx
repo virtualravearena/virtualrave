@@ -49,7 +49,7 @@ export function Hero() {
         </h1>
         <p className="tagline">
           <span className="bar" />
-          CLAIM 1 OF 303 EDITIONS
+          COLLECT 1 OF 303 EDITIONS
           <span className="bar" />
         </p>
       </div>

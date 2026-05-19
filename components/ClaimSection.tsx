@@ -19,14 +19,14 @@ export function ClaimSection({ onConnect, orbSession }: ClaimSectionProps) {
       <div className="claim__head">
         <div>
           <div className="section-tag">
-            <span className="square" /> SECTION  01 / CLAIM
+            <span className="square" /> SECTION  01 / COLLECT
           </div>
           <h2 className="section-title">
-            claim <em>VR 303</em>
+            collect <em>VR 303</em>
           </h2>
         </div>
         <p className="section-blurb">
-          Claim your VR 303 on Lens. Each edition costs 1 GHO. Supply stays fixed at 303.
+          Collect your VR 303 on Lens. Each edition costs 1 GHO. Supply stays fixed at 303.
         </p>
       </div>
       <div className="claim__grid">

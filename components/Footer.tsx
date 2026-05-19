@@ -7,7 +7,7 @@ export function Footer() {
       <div className="foot__grid">
         <div className="foot__cell">
           <h4>// END OF PAGE</h4>
-          <p className="foot__big">claim <em>one</em><br />use <em>yours</em></p>
+          <p className="foot__big">collect <em>one</em><br />use <em>yours</em></p>
         </div>
         <div className="foot__cell">
           <h4>// THE MACHINES</h4>

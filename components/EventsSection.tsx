@@ -14,7 +14,7 @@ const TICKER = [
   "SIGNAL ACTIVE",
   "STREAM EVERYTHING",
   "ARCHIVE RECORDING",
-  "NO DAO",
+  "NO CHATTER",
   "RAVE FOREVER",
 ];
 
@@ -102,9 +102,9 @@ const PRINCIPLES: Principle[] = [
     "Do not fake attendance.\nDo not fake partnerships.\nDo not exploit artists.\nDo not destroy local scenes for short-term hype.",
     "Support independent culture.\nSupport long-term communities.\nSupport local organizers.",
   ]},
-  { n: "10", title: "NO DAO GOVERNANCE", icon: "⊘", teaser: "no tokens. no votes. no whales.", body: [
-    "The federation is not a DAO and will never be one.",
-    "DAOs are failed utopias in real world systems when capital means control.",
+  { n: "10", title: "NO GOVERNANCE THEATER", icon: "⊘", teaser: "no tokens. no votes. no whales.", body: [
+    "The federation is not a governance club and will never be one.",
+    "We are not here to debate proposals or let capital decide the culture.",
     "There are:",
     ["no governance tokens", "no proposal systems", "no voting politics", "no whale control", "no treasury games"],
     "The federation operates through:",

@@ -13,7 +13,7 @@ interface NavProps {
 }
 
 const LINKS = [
-  { n: "01", l: "CLAIM",     href: "#claim" },
+  { n: "01", l: "COLLECT",   href: "#claim" },
   { n: "02", l: "IP RIGHTS", href: "#cc0" },
   { n: "03", l: "STUDIO",     href: "#studio" },
   { n: "04", l: "MIXTAPE",    href: "#mixtape" },

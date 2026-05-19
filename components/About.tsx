@@ -75,16 +75,16 @@ const TRANSMISSIONS: Transmission[] = [
   },
   {
     idx: "05",
-    era: "no governance",
-    kicker: "not a dao",
+    era: "culture first",
+    kicker: "not a governance club",
     title: (
       <><K sm>no</K> voting. <K sm>no</K> proposals. <K sm>no</K> token parliament.</>
     ),
     body: [
-      "Virtual Rave is not a DAO.",
+      "Virtual Rave is not a governance club.",
       "Communities grow through participation, events, archives, and local scenes. Not governance theater.",
     ],
-    tags: ["NO DAO", "NO WHALES", "NO DRAMA"],
+    tags: ["NO CHATTER", "NO WHALES", "NO DRAMA"],
     variant: "punch",
   },
   {
@@ -136,12 +136,12 @@ export function About() {
 
         <div className="mfst__title-wrap">
           <h2 className="mfst__title">
-            <span className="mfst__title-line mfst__title-line--1">why</span>
+            <span className="mfst__title-line mfst__title-line--1">what</span>
             <span className="mfst__title-line mfst__title-line--2">
               <em>virtual</em>
             </span>
             <span className="mfst__title-line mfst__title-line--3">
-              rave <span className="mfst__title-amp">/</span> <span className="mfst__title-trail">exists.</span>
+              rave <span className="mfst__title-amp">/</span> <span className="mfst__title-trail">exists for.</span>
             </span>
           </h2>
         </div>
@@ -149,10 +149,10 @@ export function About() {
         <div className="mfst__lede">
           <div className="mfst__lede-rule" />
           <p className="mfst__lede-text mfst__lede-text--opener">
-            <em className="mfst__key">Rave</em> <em className="mfst__key">culture</em> was never supposed to become locked inside platforms, chains, algorithms, or closed communities. <span className="mfst__lede-mute">Yet sometimes it feels exactly like that.</span>
+            We do not run a Discord. We do not run a Telegram. We build infrastructure for scenes, not chatter for hype.
           </p>
           <p className="mfst__lede-text">
-            The <em className="mfst__key mfst__key--sm">culture</em> came from small clubs, pirate radio, warehouse parties, flyers, record stores, afterhours, and people building scenes together from nothing.
+            Our community is on the dancefloor, not in proposal threads. We are not here to worship price action or beg for validation through a number.
           </p>
 
           <div className="mfst__triad">
@@ -171,13 +171,13 @@ export function About() {
           </div>
 
           <p className="mfst__lede-credo">
-            Very few projects connect all three through a <em className="mfst__key mfst__key--sm">language</em> both cultural <span className="mfst__lede-amp">&amp;</span> tech-forward communities understand.
+            Virtual Rave is part of the subculture first, and the technology exists to serve the culture.
           </p>
 
           <div className="mfst__goal">
             <span className="mfst__goal-pin">GOAL</span>
             <p>
-              <em className="mfst__key mfst__key--sm">Virtual Rave</em> moves into live events, archives, city networks, livestreams, open culture, and permanent documentation of nightlife scenes. To connect <em className="mfst__key mfst__key--sm">real scenes</em> across different cities under one shared universe.
+              <em className="mfst__key mfst__key--sm">Virtual Rave</em> is a distributed network connecting real-world rave culture through on-chain infrastructure.
             </p>
           </div>
         </div>

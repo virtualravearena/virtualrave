@@ -61,10 +61,10 @@ function debugStringify(value: unknown) {
 
 function friendlyClaimError(raw: string) {
   if (raw.includes("0xc84651bb")) {
-    return "Direct claim is inactive on the contract.";
+    return "Direct collect is inactive on the contract.";
   }
   if (raw.includes("0x77a5352e")) {
-    return "Lens action is rejecting this mint path.";
+    return "Lens action is rejecting this collect path.";
   }
   return raw.slice(0, 100) || "TX FAILED. TRY AGAIN";
 }
@@ -373,7 +373,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
 
   const handleClaim = async () => {
     setDebugLog([]);
-    appendDebug("claim clicked", {
+    appendDebug("collect clicked", {
       qty,
       mintDestination,
       paymentSource,
@@ -460,12 +460,12 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     }
     if (globalMintEnabled === false) {
       setTxStatus("error");
-      setStep("Mint is globally disabled on the contract.");
+      setStep("Collect is globally disabled on the contract.");
       appendDebug("blocked: globalMintEnabled is false", {
         contract: CONTRACT,
         globalMintEnabled,
         contractPaused,
-        hint: "Owner must call setGlobalMintEnabled(true) before direct claims or Lens actions can mint.",
+        hint: "Owner must call setGlobalMintEnabled(true) before direct collects or Lens actions can collect.",
       });
       return;
     }
@@ -533,7 +533,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     try {
       if (paymentSource === "eoa") {
         setStep("SIGN WITH EOA...");
-        appendDebug("dispatching direct EOA contract claim", {
+        appendDebug("dispatching direct EOA contract collect", {
           contract: CONTRACT,
           payer: address,
           receiver: address,
@@ -550,7 +550,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             account: address,
             value: eoaCostWei,
           });
-          appendDebug("direct EOA claim gas preflight passed");
+          appendDebug("direct EOA collect gas preflight passed");
         }
         const hash = await writeContractAsync({
           address: CONTRACT,
@@ -561,7 +561,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
           chainId: lensMainnet.id,
           gas: BigInt(300_000),
         });
-        appendDebug("direct EOA contract claim returned tx hash", { hash });
+        appendDebug("direct EOA contract collect returned tx hash", { hash });
         setTxHash(hash);
         setStep("WAITING FOR CONFIRMATION...");
         return;
@@ -653,7 +653,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       const raw = err instanceof Error ? err.message : String(err);
       const lower = raw.toLowerCase();
       const rejected = lower.includes("rejected") || lower.includes("denied") || lower.includes("cancel") || lower.includes("user rejected");
-      appendDebug("claim failed", {
+      appendDebug("collect failed", {
         raw,
         rejected,
         error: toDebugValue(err),
@@ -726,7 +726,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     <div className="win">
       <div className="win__bar">
         <div className="title">
-          <span className="ico"></span> claim_terminal.exe  VR 303
+          <span className="ico"></span> collect_terminal.exe  VR 303
         </div>
         <div className="ctrls">
           <span className="ctrl">_</span>
@@ -737,7 +737,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       <div className="win__body">
         <div className="claim__counter">
           <div>
-            <div className="label">MINTED / SUPPLY</div>
+            <div className="label">COLLECTED / SUPPLY</div>
             <div className="big">
               {String(mintedDisplay).padStart(3, "0")}
               <span className="of"> / {total}</span>
@@ -747,7 +747,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             <ProgressBar minted={minted ?? 0} total={total} />
           </div>
           <div style={{ textAlign: "right" }}>
-            <div className="label">% MINTED</div>
+            <div className="label">% COLLECTED</div>
             <div className="big">
               {pctDisplay}
               <span style={{ fontSize: 22 }}>%</span>
@@ -770,7 +770,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
 
         <div className="field">
           <label>
-            <span>// CLAIM WALLET</span>
+            <span>// COLLECT WALLET</span>
             <span className="hint">{isConnected ? "EOA SIGNER" : "NOT CONNECTED"}</span>
           </label>
           <div className="input">
@@ -783,7 +783,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
 
         <div className="field">
           <label>
-            <span>// MINT DESTINATION</span>
+            <span>// COLLECT DESTINATION</span>
             <span className="hint">{recipientDisplay}</span>
           </label>
           <div className="dest-toggle">
@@ -858,7 +858,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
 
         {txStatus === "success" ? (
           <button className="btn-claim is-success" onClick={reset}>
-            <span>CLAIMED. VR 303 MINTED.</span>
+            <span>COLLECTED. VR 303 SECURED.</span>
             <span className="arr"></span>
           </button>
         ) : (
@@ -872,21 +872,21 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
               {txStatus === "busy"
                 ? step
                 : globalMintEnabled === false
-                ? "MINT DISABLED ON CONTRACT"
+                ? "COLLECT DISABLED ON CONTRACT"
                 : contractPaused
                 ? "CONTRACT PAUSED"
                 : needsOrb && !orbSession
-                ? "LOGIN WITH ORB TO CLAIM"
+                ? "LOGIN WITH ORB TO COLLECT"
                 : paymentSource === "eoa" && !isConnected
-                ? "CONNECT WALLET TO CLAIM"
+                ? "CONNECT WALLET TO COLLECT"
                 : paymentSource === "lensProfile" && !sessionClient
-                ? "AUTH LENS PROFILE TO CLAIM"
-                : `CLAIM VR 303 x 0${qty} TO ${destinationLabel}`}
+                ? "AUTH LENS PROFILE TO COLLECT"
+                : `COLLECT VR 303 x 0${qty} TO ${destinationLabel}`}
               <span className="mini" style={{ display: "block" }}>
                 {txStatus === "busy"
                   ? "DO NOT CLOSE THIS WINDOW..."
                   : globalMintEnabled === false
-                  ? "OWNER MUST ENABLE GLOBAL MINTING"
+                  ? "OWNER MUST ENABLE COLLECTING"
                   : contractPaused
                   ? "OWNER MUST UNPAUSE THE CONTRACT"
                   : needsOrb && !orbSession
@@ -916,8 +916,8 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             </>
           ) : (
             <>
-              <div className="li">Send to Lens profile through Orb, or send to connected wallet with direct claim.</div>
-              <div className="li">Claim stops at 303 of 303 minted.</div>
+              <div className="li">Send to Lens profile through Orb, or send to connected wallet with direct collect.</div>
+              <div className="li">Collect stops at 303 of 303 editions.</div>
               <div className="li">On-chain renderer. CC0 license.</div>
             </>
           )}
