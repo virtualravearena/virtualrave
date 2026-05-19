@@ -34,7 +34,7 @@ export function Hero() {
             ACID HISTORY<br />1981 TO 2026
           </span>
           <span className="hero__caption bl">
-            <span className="lead" />HOVER, DRAG, PLAY
+            <span className="lead" />COLLECT, CONNECT, ATTEND
           </span>
           <span className="hero__caption br">
             EDITION OF 303<br />1 GHO ON LENS
