@@ -1,20 +1,21 @@
 "use client";
 import { AsciiSmiley } from "./AsciiSmiley";
-
-const CONTRACT_SHORT = "0x303A...29Af";
+import { CONTRACT_SHORT } from "@/lib/wagmi";
 
 export function Hero() {
   return (
     <section id="hero" className="hero">
       <video
         className="hero__bg-video"
-        src="/video/bg.webm"
         autoPlay
         muted
         loop
         playsInline
         aria-hidden="true"
-      />
+      >
+        <source src="/video/bg.mp4" type="video/mp4" />
+        <source src="/video/bg.webm" type="video/webm" />
+      </video>
       <div className="hero__bg-scrim" />
 
       <div className="hero__grid">

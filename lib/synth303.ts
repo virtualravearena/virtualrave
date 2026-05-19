@@ -20,7 +20,34 @@ export interface Track {
   year: number;
 }
 
-function noteToFreq(note: string): number {
+export interface SynthParams {
+  cutoff: number;
+  res: number;
+  envMod: number;
+  decay: number;
+}
+
+export interface SynthGraph {
+  osc: OscillatorNode;
+  subOsc: OscillatorNode;
+  subGain: GainNode;
+  filter: BiquadFilterNode;
+  amp: GainNode;
+  master: GainNode;
+  shaper: WaveShaperNode;
+  delay: DelayNode;
+  feedback: GainNode;
+  wet: GainNode;
+}
+
+export const DEFAULT_SYNTH_PARAMS: SynthParams = {
+  cutoff: 0.48,
+  res: 0.78,
+  envMod: 0.65,
+  decay: 0.55,
+};
+
+export function noteToFreq(note: string): number {
   const map: Record<string, number> = {
     C: -9, "C#": -8, D: -7, "D#": -6, E: -5, F: -4, "F#": -3,
     G: -2, "G#": -1, A: 0, "A#": 1, B: 2,
@@ -31,7 +58,7 @@ function noteToFreq(note: string): number {
   return 440 * Math.pow(2, semis / 12);
 }
 
-function makeSoftClipCurve(amount: number): Float32Array {
+export function makeSoftClipCurve(amount: number): Float32Array {
   const k = amount;
   const N = 1024;
   const c = new Float32Array(N);
@@ -42,31 +69,152 @@ function makeSoftClipCurve(amount: number): Float32Array {
   return c;
 }
 
-const EMPTY_PATTERN: Step[] = Array.from({ length: 16 }, () => ({
+export const EMPTY_PATTERN: Step[] = Array.from({ length: 16 }, () => ({
   on: false,
   note: "C3",
   accent: false,
   slide: false,
 }));
 
-interface SynthParams {
-  cutoff: number;
-  res: number;
-  envMod: number;
-  decay: number;
+export function getStepDuration(bpm: number): number {
+  return 60 / Math.max(60, Math.min(220, bpm)) / 4;
+}
+
+export function buildSynthGraph(
+  ctx: AudioContext | OfflineAudioContext,
+  bpm: number,
+  params: SynthParams = DEFAULT_SYNTH_PARAMS,
+  startAt: number = 0,
+): SynthGraph {
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.value = noteToFreq("C2");
+
+  const subOsc = ctx.createOscillator();
+  subOsc.type = "square";
+  subOsc.frequency.value = noteToFreq("C1");
+
+  const subGain = ctx.createGain();
+  subGain.gain.value = 0.14;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 320;
+  filter.Q.value = 14;
+
+  const amp = ctx.createGain();
+  amp.gain.value = 0.0008;
+
+  const master = ctx.createGain();
+  master.gain.value = 0.48;
+
+  const shaper = ctx.createWaveShaper();
+  shaper.curve = makeSoftClipCurve(5) as unknown as Float32Array<ArrayBuffer>;
+  shaper.oversample = "2x";
+
+  const delay = ctx.createDelay();
+  delay.delayTime.value = getStepDuration(bpm) * 1.5;
+
+  const feedback = ctx.createGain();
+  feedback.gain.value = 0.22;
+
+  const wet = ctx.createGain();
+  wet.gain.value = 0.18;
+
+  delay.connect(feedback).connect(delay);
+  delay.connect(wet).connect(shaper);
+  osc.connect(filter);
+  subOsc.connect(subGain).connect(filter);
+  filter.connect(amp).connect(master);
+  master.connect(delay);
+  master.connect(shaper);
+  shaper.connect(ctx.destination);
+
+  osc.start(startAt);
+  subOsc.start(startAt);
+
+  return {
+    osc,
+    subOsc,
+    subGain,
+    filter,
+    amp,
+    master,
+    shaper,
+    delay,
+    feedback,
+    wet,
+  };
+}
+
+function applyStepToGraph(
+  graph: SynthGraph,
+  params: SynthParams,
+  step: Step,
+  next: Step | undefined,
+  time: number,
+  stepDur: number,
+): void {
+  if (!step.on) return;
+  const slide = step.slide && !!next?.on;
+  const dur = slide ? stepDur * 1.95 : next?.on ? stepDur * 0.98 : stepDur * 0.9;
+  const f0 = noteToFreq(step.note);
+  const f1 = slide && next ? noteToFreq(next.note) : f0;
+
+  graph.osc.frequency.cancelScheduledValues(time);
+  graph.subOsc.frequency.cancelScheduledValues(time);
+  graph.osc.frequency.setTargetAtTime(f0, time, 0.004);
+  graph.subOsc.frequency.setTargetAtTime(f0 * 0.5, time, 0.004);
+  if (slide) {
+    const slideAt = time + dur * 0.35;
+    graph.osc.frequency.setValueAtTime(f0, slideAt);
+    graph.osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), time + dur);
+    graph.subOsc.frequency.setValueAtTime(f0 * 0.5, slideAt);
+    graph.subOsc.frequency.exponentialRampToValueAtTime(
+      Math.max(20, f1 * 0.5),
+      time + dur,
+    );
+  }
+
+  const Q = 4 + params.res * 26;
+  graph.filter.Q.setValueAtTime(Q, time);
+  const cutoffBase = 90 + params.cutoff * 1400;
+  const envAmt = params.envMod * 5200 * (step.accent ? 1.55 : 1);
+  const decayT = 0.04 + params.decay * 0.32 * (step.accent ? 0.55 : 1);
+  graph.filter.frequency.cancelScheduledValues(time);
+  graph.filter.frequency.setValueAtTime(cutoffBase + envAmt, time);
+  graph.filter.frequency.exponentialRampToValueAtTime(
+    Math.max(40, cutoffBase),
+    time + decayT,
+  );
+
+  const peak = step.accent ? 0.62 : 0.36;
+  const floor = next?.on ? 0.018 : 0.0008;
+  graph.amp.gain.cancelScheduledValues(time);
+  graph.amp.gain.setTargetAtTime(peak, time, 0.006);
+  graph.amp.gain.setTargetAtTime(peak * 0.72, time + 0.026, 0.018);
+  graph.amp.gain.setTargetAtTime(floor, time + dur, next?.on ? 0.035 : 0.055);
+}
+
+export function schedulePatternStep(
+  graph: SynthGraph,
+  pattern: Step[],
+  params: SynthParams,
+  idx: number,
+  time: number,
+  stepDur: number,
+): void {
+  const length = Math.max(1, pattern.length || 16);
+  const step = pattern[idx % length];
+  if (!step || !step.on) return;
+  const next = pattern[(idx + 1) % length];
+  applyStepToGraph(graph, params, step, next, time, stepDur);
 }
 
 export class Synth303Engine {
   ctx: AudioContext | null = null;
-  osc: OscillatorNode | null = null;
-  subOsc: OscillatorNode | null = null;
-  subGain: GainNode | null = null;
-  filter: BiquadFilterNode | null = null;
-  amp: GainNode | null = null;
-  master: GainNode | null = null;
-  shaper: WaveShaperNode | null = null;
-  delay: DelayNode | null = null;
-  params: SynthParams = { cutoff: 0.48, res: 0.78, envMod: 0.65, decay: 0.55 };
+  graph: SynthGraph | null = null;
+  params: SynthParams = { ...DEFAULT_SYNTH_PARAMS };
   bpm = 138;
   playing = false;
   currentStep = 0;
@@ -82,48 +230,7 @@ export class Synth303Engine {
       (window as typeof window & { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext;
     this.ctx = new AC();
-
-    this.osc = this.ctx.createOscillator();
-    this.osc.type = "sawtooth";
-    this.osc.frequency.value = noteToFreq("C2");
-
-    this.subOsc = this.ctx.createOscillator();
-    this.subOsc.type = "square";
-    this.subOsc.frequency.value = noteToFreq("C1");
-
-    this.subGain = this.ctx.createGain();
-    this.subGain.gain.value = 0.14;
-
-    this.filter = this.ctx.createBiquadFilter();
-    this.filter.type = "lowpass";
-    this.filter.frequency.value = 320;
-    this.filter.Q.value = 14;
-
-    this.amp = this.ctx.createGain();
-    this.amp.gain.value = 0.0008;
-
-    this.master = this.ctx.createGain();
-    this.master.gain.value = 0.48;
-    this.shaper = this.ctx.createWaveShaper();
-    this.shaper.curve = makeSoftClipCurve(5) as Float32Array<ArrayBuffer>;
-    this.shaper.oversample = "2x";
-    this.delay = this.ctx.createDelay();
-    this.delay.delayTime.value = (60 / this.bpm) * 0.375;
-    const fb = this.ctx.createGain();
-    fb.gain.value = 0.22;
-    const wet = this.ctx.createGain();
-    wet.gain.value = 0.18;
-    this.delay.connect(fb).connect(this.delay);
-    this.delay.connect(wet).connect(this.shaper);
-    this.osc.connect(this.filter);
-    this.subOsc.connect(this.subGain).connect(this.filter);
-    this.filter.connect(this.amp).connect(this.master);
-    this.osc.start();
-    this.subOsc.start();
-
-    this.master.connect(this.delay);
-    this.master.connect(this.shaper);
-    this.shaper.connect(this.ctx.destination);
+    this.graph = buildSynthGraph(this.ctx, this.bpm, this.params);
   }
 
   setParam(name: keyof SynthParams, val: number) {
@@ -136,7 +243,7 @@ export class Synth303Engine {
 
   setBpm(bpm: number) {
     this.bpm = Math.max(60, Math.min(220, bpm));
-    if (this.delay) this.delay.delayTime.value = (60 / this.bpm) * 0.375;
+    if (this.graph) this.graph.delay.delayTime.value = getStepDuration(this.bpm) * 1.5;
   }
 
   play() {
@@ -156,15 +263,16 @@ export class Synth303Engine {
       this.timer = null;
     }
     if (this.onStep) this.onStep(-1);
-    if (this.ctx && this.amp) {
-      this.amp.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.amp.gain.setTargetAtTime(0.0008, this.ctx.currentTime, 0.018);
+    if (this.ctx && this.graph) {
+      this.graph.amp.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.graph.amp.gain.setTargetAtTime(0.0008, this.ctx.currentTime, 0.018);
     }
   }
 
   _scheduler() {
     if (!this.playing) return;
-    const stepDur = 60 / this.bpm / 4;
+    const stepDur = getStepDuration(this.bpm);
+    const length = Math.max(1, this.pattern.length || 16);
     while (this.nextTime < this.ctx!.currentTime + 0.1) {
       const idx = this.currentStep;
       const time = this.nextTime;
@@ -176,77 +284,30 @@ export class Synth303Engine {
         }, ms);
       }
       this.nextTime += stepDur;
-      this.currentStep = (idx + 1) % 16;
+      this.currentStep = (idx + 1) % length;
     }
     this.timer = setTimeout(() => this._scheduler(), 25);
   }
 
   _schedule(idx: number, time: number, stepDur: number) {
-    const s = this.pattern[idx];
-    if (!s || !s.on) return;
-    const next = this.pattern[(idx + 1) % 16];
-    const slide = s.slide && next && next.on;
-    const nextOn = !!next?.on;
-    const dur = slide ? stepDur * 1.95 : nextOn ? stepDur * 0.98 : stepDur * 0.9;
-    this._note(time, s.note, dur, s.accent, slide, next?.note, nextOn);
-  }
-
-  _note(
-    time: number,
-    note: string,
-    dur: number,
-    accent: boolean,
-    slide: boolean,
-    nextNote?: string,
-    nextOn: boolean = false,
-  ) {
-    const ctx = this.ctx!;
-    const osc = this.osc!;
-    const subOsc = this.subOsc!;
-    const filter = this.filter!;
-    const amp = this.amp!;
-    const f0 = noteToFreq(note);
-    const f1 = slide && nextNote ? noteToFreq(nextNote) : f0;
-
-    osc.frequency.cancelScheduledValues(time);
-    subOsc.frequency.cancelScheduledValues(time);
-    osc.frequency.setTargetAtTime(f0, time, 0.004);
-    subOsc.frequency.setTargetAtTime(f0 * 0.5, time, 0.004);
-    if (slide) {
-      const slideAt = time + dur * 0.35;
-      osc.frequency.setValueAtTime(f0, slideAt);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), time + dur);
-      subOsc.frequency.setValueAtTime(f0 * 0.5, slideAt);
-      subOsc.frequency.exponentialRampToValueAtTime(
-        Math.max(20, f1 * 0.5),
-        time + dur,
-      );
-    }
-
-    const Q = 4 + this.params.res * 26;
-    filter.Q.setValueAtTime(Q, time);
-    const cutoffBase = 90 + this.params.cutoff * 1400;
-    const envAmt = this.params.envMod * 5200 * (accent ? 1.55 : 1);
-    const decayT = 0.04 + this.params.decay * 0.32 * (accent ? 0.55 : 1);
-    filter.frequency.cancelScheduledValues(time);
-    filter.frequency.setValueAtTime(cutoffBase + envAmt, time);
-    filter.frequency.exponentialRampToValueAtTime(
-      Math.max(40, cutoffBase),
-      time + decayT,
-    );
-
-    const peak = accent ? 0.62 : 0.36;
-    const floor = nextOn ? 0.018 : 0.0008;
-    amp.gain.cancelScheduledValues(time);
-    amp.gain.setTargetAtTime(peak, time, 0.006);
-    amp.gain.setTargetAtTime(peak * 0.72, time + 0.026, 0.018);
-    amp.gain.setTargetAtTime(floor, time + dur, nextOn ? 0.035 : 0.055);
+    const graph = this.graph;
+    if (!graph) return;
+    schedulePatternStep(graph, this.pattern, this.params, idx, time, stepDur);
   }
 
   preview(note: string = "A2") {
     this._ensure();
     if (this.ctx!.state === "suspended") this.ctx!.resume();
-    this._note(this.ctx!.currentTime, note, 0.25, true, false);
+    if (!this.graph) return;
+    const previewStep: Step = { on: true, note, accent: true, slide: false };
+    applyStepToGraph(
+      this.graph,
+      this.params,
+      previewStep,
+      undefined,
+      this.ctx!.currentTime,
+      0.25,
+    );
   }
 }
 

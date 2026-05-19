@@ -1,6 +1,5 @@
 "use client";
-
-const CONTRACT = "0x303AC1D2736C70A9BaE4FC46aAe1c6Ed41C629Af";
+import { CONTRACT } from "@/lib/wagmi";
 
 export function Footer() {
   return (

@@ -14,11 +14,14 @@ import { EventsSection } from "@/components/EventsSection";
 import { About } from "@/components/About";
 import { Footer } from "@/components/Footer";
 import { WalletModal } from "@/components/WalletModal";
+import { CeremonyPreviewButton } from "@/components/mint/CeremonyPreviewButton";
 import type { StudioBridge } from "@/components/Studio";
+import type { OrbSession } from "@/components/OrbLoginPanel";
 
 export default function Home() {
   const { address } = useAccount();
   const [showWallet, setShowWallet] = useState(false);
+  const [orbSession, setOrbSession] = useState<OrbSession | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const bridgeRef = useRef<StudioBridge | null>(null);
   const mixtapeAudio = useMixtapeAudio();
@@ -38,7 +41,7 @@ export default function Home() {
       />
       <Hero />
       <Strip />
-      <ClaimSection onConnect={onConnect} />
+      <ClaimSection onConnect={onConnect} orbSession={orbSession} />
       <CC0Guide />
       <StudioSection bridgeRef={bridgeRef} />
       <MixtapeSection bridgeRef={bridgeRef} audio={mixtapeAudio} />
@@ -47,7 +50,15 @@ export default function Home() {
       <EventsSection />
       <About />
       <Footer />
-      {showWallet && <WalletModal onClose={() => setShowWallet(false)} />}
+      {showWallet && (
+        <WalletModal
+          onClose={() => setShowWallet(false)}
+          orbSession={orbSession}
+          onOrbAuthenticated={setOrbSession}
+          onOrbLogout={() => setOrbSession(null)}
+        />
+      )}
+      <CeremonyPreviewButton />
     </div>
   );
 }

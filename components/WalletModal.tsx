@@ -1,11 +1,20 @@
 "use client";
 import { useConnect } from "wagmi";
+import { OrbLoginPanel, type OrbSession } from "./OrbLoginPanel";
 
 interface WalletModalProps {
   onClose: () => void;
+  orbSession: OrbSession | null;
+  onOrbAuthenticated: (session: OrbSession) => void;
+  onOrbLogout: () => void;
 }
 
-export function WalletModal({ onClose }: WalletModalProps) {
+export function WalletModal({
+  onClose,
+  orbSession,
+  onOrbAuthenticated,
+  onOrbLogout,
+}: WalletModalProps) {
   const { connect, connectors } = useConnect();
 
   const walletIcons: Record<string, string> = {
@@ -28,19 +37,16 @@ export function WalletModal({ onClose }: WalletModalProps) {
             </span>
           </div>
         </div>
-        <div
-          style={{
-            padding: "10px 16px 0",
-            fontFamily: "var(--mono)",
-            fontSize: 11,
-            letterSpacing: ".12em",
-            textTransform: "uppercase",
-            opacity: 0.7,
-          }}
-        >
-          choose your wallet  lens network
+        <OrbLoginPanel
+          session={orbSession}
+          onAuthenticated={onOrbAuthenticated}
+          onLogout={onOrbLogout}
+          onAuthSuccess={onClose}
+        />
+        <div className="modal__label">
+          then choose your wallet  lens network
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="modal__wallets">
           {connectors.map((connector) => (
             <div
               key={connector.uid}

@@ -1,8 +1,10 @@
 import { createConfig, http } from "wagmi";
 import { injected, walletConnect } from "@wagmi/connectors";
 import { defineChain } from "viem";
+import { chainConfig } from "viem/zksync";
 
 export const lensMainnet = defineChain({
+  ...chainConfig,
   id: 232,
   name: "Lens",
   nativeCurrency: { name: "GHO", symbol: "GHO", decimals: 18 },

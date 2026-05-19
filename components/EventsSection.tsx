@@ -167,23 +167,26 @@ const STATE_LABEL: Record<CityState, string> = {
 
 function pad2(n: number) { return n.toString().padStart(2, "0"); }
 
+function getUtcMinutesNow() {
+  const d = new Date();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
 function useUtcMinutes() {
-  const [m, setM] = useState(() => {
-    const d = new Date();
-    return d.getUTCHours() * 60 + d.getUTCMinutes();
-  });
+  const [m, setM] = useState(0);
   useEffect(() => {
+    setM(getUtcMinutesNow());
     const id = setInterval(() => {
-      const d = new Date();
-      setM(d.getUTCHours() * 60 + d.getUTCMinutes());
+      setM(getUtcMinutesNow());
     }, 30 * 1000);
     return () => clearInterval(id);
   }, []);
   return m;
 }
 function useBlink(intervalMs = 900) {
-  const [on, setOn] = useState(true);
+  const [on, setOn] = useState(false);
   useEffect(() => {
+    setOn(true);
     const id = setInterval(() => setOn(v => !v), intervalMs);
     return () => clearInterval(id);
   }, [intervalMs]);

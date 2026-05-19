@@ -1,6 +1,13 @@
 "use client";
+import { CONTRACT } from "@/lib/wagmi";
 
-const CONTRACT = "0x303AC1D2736C70A9BaE4FC46aAe1c6Ed41C629Af";
+const previewSlides = [
+  { src: "/assets/virtualrave-smiley.webp", alt: "Virtual Rave smiley artwork" },
+  { src: "/assets/1.webp", alt: "Virtual Rave collaboration artwork 1" },
+  { src: "/assets/2.webp", alt: "Virtual Rave collaboration artwork 2" },
+  { src: "/assets/3.webp", alt: "Virtual Rave collaboration artwork 3" },
+  { src: "/assets/4.webp", alt: "Virtual Rave collaboration artwork 4" },
+];
 
 const specs = [
   ["DROP", "VIRTUAL RAVE / VR 303"],
@@ -64,16 +71,17 @@ export function ClaimSide() {
         <div className="win__body preview-card" style={{ padding: 0 }}>
           <div className="frame">
             <span className="corner tl">VR 303 / 1 / 303</span>
-            <img
-              src="/assets/virtualrave-smiley.png"
-              alt="Virtual Rave smiley artwork"
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "block",
-                imageRendering: "pixelated",
-              }}
-            />
+            <div className="preview-card__slides">
+              {previewSlides.map((slide, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={slide.src}
+                  src={slide.src}
+                  alt={slide.alt}
+                  style={{ animationDelay: `${index * 2.4}s` }}
+                />
+              ))}
+            </div>
             <span className="corner br">LENS / 1 GHO / CC0</span>
           </div>
         </div>

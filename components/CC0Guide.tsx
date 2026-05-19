@@ -141,10 +141,10 @@ const PILLARS = [
 ];
 
 const MOVES = [
-  { Ico: I.Pencil, label: "REMIX IT", desc: "Change the colors, add effects, or redraw it yourself.", img: "/assets/cc0/remix.png" },
-  { Ico: I.Tshirt, label: "PUT IT ON PRODUCTS", desc: "Put it on prints, shirts, mugs, stickers, and packaging.", img: "/assets/cc0/products.png" },
-  { Ico: I.Note, label: "USE IN YOUR MUSIC", desc: "Use it in album art, sleeves, videos, visuals, and covers.", img: "/assets/cc0/music.png" },
-  { Ico: I.Code, label: "BUILD DIGITAL", desc: "Use it in games, sites, apps, worlds, and renderers.", img: "/assets/cc0/build.png" },
+  { Ico: I.Pencil, label: "REMIX IT", desc: "Change the colors, add effects, or redraw it yourself.", img: "/store/remix.webp" },
+  { Ico: I.Tshirt, label: "PUT IT ON PRODUCTS", desc: "Put it on prints, shirts, mugs, stickers, and packaging.", img: "/store/hat.webp" },
+  { Ico: I.Note, label: "USE IN YOUR MUSIC", desc: "Use it in album art, sleeves, videos, visuals, and covers.", img: "/store/mixtape.webp" },
+  { Ico: I.Code, label: "BUILD DIGITAL", desc: "Use it in games, sites, apps, worlds, and renderers.", img: "/store/game.webp" },
 ];
 
 const CATALOG: { Ico: (p: React.SVGProps<SVGSVGElement>) => ReactNode; head: string; items: { label: string; img: string }[] }[] = [
@@ -228,7 +228,7 @@ function Slot({ src, alt, label, ratio }: { src: string; alt: string; label?: st
         )}
         <span className="cc0g-slot__ph" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/virtualrave-smiley.png" alt="" />
+          <img src="/assets/virtualrave-smiley.webp" alt="" />
         </span>
       </div>
       {label && <figcaption className="cc0g-slot__cap">{label}</figcaption>}
@@ -315,7 +315,7 @@ export function CC0Guide() {
             >
               <span className="cc0g__move-num">0{i + 1}</span>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="cc0g__move-smiley" src="/assets/virtualrave-smiley.png" alt="" />
+              <img className="cc0g__move-smiley" src="/assets/virtualrave-smiley.webp" alt="" />
               <I.Plus width={16} height={16} className="cc0g__op" />
               <Ico width={36} height={36} className="cc0g__move-tool" />
               <I.Equals width={16} height={16} className="cc0g__op" />
@@ -343,20 +343,9 @@ export function CC0Guide() {
               <I.File width={18} height={18} /> WHAT YOU CAN DO
             </div>
             <div className="cc0g__cat-row cc0g__cat-row--3">
-              {[
-                "Make merch and flyers.",
-                "Run events and raves.",
-                "Build games and music projects.",
-              ].map((label) => (
-                <div key={label} className="cc0g-slot">
-                  <div className="cc0g-slot__img" style={{ aspectRatio: "1 / 1" }}>
-                    <span className="cc0g-slot__ph" aria-hidden="true">
-                      <img src="/assets/virtualrave-smiley.png" alt="" />
-                    </span>
-                  </div>
-                  <figcaption className="cc0g-slot__cap">{label}</figcaption>
-                </div>
-              ))}
+              <Slot src="/store/skateboard.webp" alt="Skateboard merch" label="Make merch and flyers." />
+              <Slot src="/store/rave.webp" alt="Rave event" label="Run events and raves." />
+              <Slot src="/store/arcade.webp" alt="Arcade game" label="Build games and music projects." />
             </div>
           </div>
           <div className="cc0g__cat">
@@ -364,20 +353,9 @@ export function CC0Guide() {
               <I.Globe width={18} height={18} /> WHAT RPS-01 ADDS
             </div>
             <div className="cc0g__cat-row cc0g__cat-row--3">
-              {[
-                "Verified rave signals.",
-                "Independent city nodes.",
-                "Major Raver archiving.",
-              ].map((label) => (
-                <div key={label} className="cc0g-slot">
-                  <div className="cc0g-slot__img" style={{ aspectRatio: "1 / 1" }}>
-                    <span className="cc0g-slot__ph" aria-hidden="true">
-                      <img src="/assets/virtualrave-smiley.png" alt="" />
-                    </span>
-                  </div>
-                  <figcaption className="cc0g-slot__cap">{label}</figcaption>
-                </div>
-              ))}
+              <Slot src="/store/verified.webp" alt="Verified rave signals" label="Verified rave signals." />
+              <Slot src="/store/nodes.webp" alt="Independent city nodes" label="Independent city nodes." />
+              <Slot src="/store/archive.webp" alt="Major Raver archiving" label="Major Raver archiving." />
             </div>
           </div>
           <div className="cc0g__cat">
@@ -385,20 +363,9 @@ export function CC0Guide() {
               <I.Lock width={18} height={18} /> WHAT IT DOES NOT DO
             </div>
             <div className="cc0g__cat-row cc0g__cat-row--3">
-              {[
-                "No DAO voting.",
-                "No proposals.",
-                "No token parliament.",
-              ].map((label) => (
-                <div key={label} className="cc0g-slot">
-                  <div className="cc0g-slot__img" style={{ aspectRatio: "1 / 1" }}>
-                    <span className="cc0g-slot__ph" aria-hidden="true">
-                      <img src="/assets/virtualrave-smiley.png" alt="" />
-                    </span>
-                  </div>
-                  <figcaption className="cc0g-slot__cap">{label}</figcaption>
-                </div>
-              ))}
+              <Slot src="/store/nodao.webp" alt="No DAO voting" label="No DAO voting." />
+              <Slot src="/store/nowhale.webp" alt="No proposals" label="No proposals." />
+              <Slot src="/store/notoken.webp" alt="No token parliament" label="No token parliament." />
             </div>
           </div>
         </div>
@@ -433,13 +400,13 @@ export function CC0Guide() {
               </g>
             </svg>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="cc0g__net-node n1" src="/assets/virtualrave-smiley.png" alt="" />
+            <img className="cc0g__net-node n1" src="/assets/1.webp" alt="" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="cc0g__net-node n2" src="/assets/virtualrave-smiley.png" alt="" />
+            <img className="cc0g__net-node n2" src="/assets/2.webp" alt="" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="cc0g__net-node n3" src="/assets/virtualrave-smiley.png" alt="" />
+            <img className="cc0g__net-node n3" src="/assets/3.webp" alt="" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="cc0g__net-node n4" src="/assets/virtualrave-smiley.png" alt="" />
+            <img className="cc0g__net-node n4" src="/assets/4.webp" alt="" />
             <div className="cc0g__net-center"><I.Globe width={48} height={48} /></div>
           </div>
 

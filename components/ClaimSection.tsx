@@ -2,12 +2,14 @@
 import { ClaimTerminal } from "./ClaimTerminal";
 import { ClaimSide } from "./ClaimSide";
 import { ClaimCC0License } from "./ClaimCC0License";
+import type { OrbSession } from "./OrbLoginPanel";
 
 interface ClaimSectionProps {
   onConnect: () => void;
+  orbSession: OrbSession | null;
 }
 
-export function ClaimSection({ onConnect }: ClaimSectionProps) {
+export function ClaimSection({ onConnect, orbSession }: ClaimSectionProps) {
   return (
     <section id="claim" className="claim">
       <div className="cloud cloud-a" />
@@ -28,7 +30,7 @@ export function ClaimSection({ onConnect }: ClaimSectionProps) {
         </p>
       </div>
       <div className="claim__grid">
-        <ClaimTerminal onConnect={onConnect} />
+        <ClaimTerminal onConnect={onConnect} orbSession={orbSession} />
         <ClaimSide />
         <ClaimCC0License />
       </div>

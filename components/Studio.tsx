@@ -9,10 +9,13 @@ import {
 } from "react";
 import {
   Synth303Engine,
+  SynthParams,
   Step,
   Track,
   exportPatternAsMidi,
 } from "@/lib/synth303";
+import { exportPatternAsWav, exportRecordedTakeAsWav } from "@/lib/audioExport";
+import { generatePattern, getPatternSignature } from "@/lib/patternGenerator";
 import { MIDI_PATTERNS, MIDI_PATTERN_MAP, MidiPattern } from "@/lib/midiPatterns";
 
 // ---------------------------------------------------------------------------
@@ -34,25 +37,62 @@ const TUTORIAL_SKIP_KEY = "vr303-tutorial-skip";
 // Knob
 // ---------------------------------------------------------------------------
 function Knob({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const drag = useRef<{ y: number; v: number } | null>(null);
-  const onDown = (e: React.PointerEvent) => {
-    drag.current = { y: e.clientY, v: value };
+  const drag = useRef<{ y: number; v: number; id: number } | null>(null);
+  const elRef = useRef<HTMLDivElement | null>(null);
+
+  const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    drag.current = { y: e.clientY, v: value, id: e.pointerId };
     document.body.style.cursor = "ns-resize";
-    e.preventDefault(); e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+    e.stopPropagation();
   };
+
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current || drag.current.id !== e.pointerId) return;
+    e.preventDefault();
+    onChange(Math.max(0, Math.min(1, drag.current.v + (drag.current.y - e.clientY) / 180)));
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+    drag.current = null;
+    document.body.style.cursor = "";
+  };
+
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      if (!drag.current) return;
-      onChange(Math.max(0, Math.min(1, drag.current.v + (drag.current.y - e.clientY) / 180)));
+    const el = elRef.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => {
+      if (drag.current) e.preventDefault();
     };
-    const onUp = () => { if (drag.current) { drag.current = null; document.body.style.cursor = ""; } };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
-  }, [onChange]);
+    el.addEventListener("touchstart", stop, { passive: false });
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", stop);
+      el.removeEventListener("touchmove", stop);
+    };
+  }, []);
+
   const angle = -135 + value * 270;
   return (
-    <div className="knob-w" onPointerDown={onDown} role="slider" aria-label={label} aria-valuenow={Math.round(value * 100)} tabIndex={0}>
+    <div
+      ref={elRef}
+      className="knob-w"
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      role="slider"
+      aria-label={label}
+      aria-valuenow={Math.round(value * 100)}
+      tabIndex={0}
+    >
       <div className="knob-d">
         <div className="knob-rot" style={{ transform: `rotate(${angle}deg)` }}>
           <span className="knob-tick" style={{ background: "var(--vr-yellow)" }} />
@@ -332,6 +372,20 @@ const padOrTruncate = (p: Step[]): Step[] => {
 
 const clonePattern = (p: Step[]): Step[] => padOrTruncate(p).map(s => ({ ...s }));
 
+type TakeEvent = {
+  t: number;
+  kind: "transport" | "edit" | "bpm" | "knob" | "preset";
+  detail: string;
+};
+
+type TakeSnapshot = {
+  pattern: Step[];
+  bpm: number;
+  knobs: SynthParams;
+  events: TakeEvent[];
+  durationMs: number;
+};
+
 const pickMidiPattern = (seed?: string): MidiPattern => {
   if (seed && MIDI_PATTERN_MAP[seed]) return MIDI_PATTERN_MAP[seed];
 
@@ -342,19 +396,6 @@ const pickMidiPattern = (seed?: string): MidiPattern => {
 
   return MIDI_PATTERNS[Math.floor(Math.random() * MIDI_PATTERNS.length)];
 };
-
-const mutateMidiPattern = (p: Step[]): Step[] => clonePattern(p).map((s, i) => {
-  if (!s.on) return Math.random() > 0.9 ? { ...s, on: true, note: "C2" } : s;
-  const out = { ...s };
-  if (Math.random() > 0.78) out.accent = !out.accent;
-  if (Math.random() > 0.84) out.slide = !out.slide;
-  if (Math.random() > 0.9) {
-    const note = out.note.replace(/\d+$/, "");
-    const oct = Math.max(1, Math.min(4, (parseInt(out.note.replace(/^[A-G]#?/, ""), 10) || 2) + (i % 2 ? 1 : -1)));
-    out.note = `${note}${oct}`;
-  }
-  return out;
-});
 
 // ---------------------------------------------------------------------------
 // StudioBridge
@@ -379,11 +420,30 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
   const [cur, setCur] = useState(-1);
   const [selectedStep, setSelectedStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordPhase, setRecordPhase] = useState<"idle" | "counting" | "recording" | "stopped">("idle");
+  const [recordCountdown, setRecordCountdown] = useState<number | null>(null);
+  const [recordElapsedMs, setRecordElapsedMs] = useState(0);
   const [bpm, setBpm] = useState(MIDI_PATTERNS[0].bpm);
   const [activeTrack, setActiveTrack] = useState(MIDI_PATTERNS[0].id);
   const [knobs, setKnobs] = useState({ cutoff: 0.48, res: 0.78, envMod: 0.65, decay: 0.55 });
 
   const [showTutorial, setShowTutorial] = useState(false);
+  const recordingRef = useRef(false);
+  const patternRef = useRef<Step[]>(initial);
+  const bpmRef = useRef(MIDI_PATTERNS[0].bpm);
+  const knobsRef = useRef<SynthParams>({ cutoff: 0.48, res: 0.78, envMod: 0.65, decay: 0.55 });
+  const takeStartedAtRef = useRef<number | null>(null);
+  const takeEventsRef = useRef<{ t: number; kind: "transport" | "edit" | "bpm" | "knob" | "preset"; detail: string }[]>([]);
+  const lastTakeRef = useRef<{ t: number; kind: "transport" | "edit" | "bpm" | "knob" | "preset"; detail: string }[]>([]);
+  const recentGeneratedSignaturesRef = useRef<string[]>([]);
+  const recordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const takeStartSnapshotRef = useRef<Omit<TakeSnapshot, "events" | "durationMs"> | null>(null);
+  const lastTakeSnapshotRef = useRef<TakeSnapshot | null>(null);
+  const lastTakeDurationMsRef = useRef(0);
+  const takeStartedWallClockRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -415,26 +475,187 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
 
   useEffect(() => { synthRef.current = new Synth303Engine(); return () => { synthRef.current?.stop(); }; }, []);
   useEffect(() => { if (synthRef.current) synthRef.current.onStep = i => setCur(i); }, []);
-  useEffect(() => { synthRef.current?.setPattern(pattern); }, [pattern]);
-  useEffect(() => { synthRef.current?.setBpm(bpm); }, [bpm]);
+  useEffect(() => { patternRef.current = pattern; synthRef.current?.setPattern(pattern); }, [pattern]);
+  useEffect(() => { bpmRef.current = bpm; synthRef.current?.setBpm(bpm); }, [bpm]);
+  useEffect(() => { recordingRef.current = recording; }, [recording]);
+  useEffect(() => {
+    return () => {
+      if (recordTimerRef.current) clearTimeout(recordTimerRef.current);
+      if (recordTickRef.current) clearInterval(recordTickRef.current);
+      if (stopFlashTimerRef.current) clearTimeout(stopFlashTimerRef.current);
+    };
+  }, []);
   useEffect(() => {
     const s = synthRef.current; if (!s) return;
+    knobsRef.current = knobs;
     s.setParam("cutoff", knobs.cutoff); s.setParam("res", knobs.res);
     s.setParam("envMod", knobs.envMod); s.setParam("decay", knobs.decay);
   }, [knobs]);
 
+  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const formatDuration = useCallback((ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }, []);
+
+  const pushTakeEvent = useCallback((kind: TakeEvent["kind"], detail: string) => {
+    if (!recordingRef.current) return;
+    const startedAt = takeStartedAtRef.current ?? now();
+    if (takeStartedAtRef.current === null) takeStartedAtRef.current = startedAt;
+    takeEventsRef.current.push({ t: Math.max(0, now() - startedAt), kind, detail });
+  }, []);
+
+  const startRecording = useCallback(() => {
+    if (recordTimerRef.current) clearTimeout(recordTimerRef.current);
+    if (recordTickRef.current) clearInterval(recordTickRef.current);
+    if (stopFlashTimerRef.current) clearTimeout(stopFlashTimerRef.current);
+
+    setRecording(false);
+    setRecordPhase("counting");
+    setRecordCountdown(5);
+    setRecordElapsedMs(0);
+    takeStartedAtRef.current = null;
+    takeStartedWallClockRef.current = null;
+    takeStartSnapshotRef.current = null;
+    takeEventsRef.current = [];
+    lastTakeDurationMsRef.current = 0;
+
+    let count = 5;
+    const tick = () => {
+      setRecordCountdown(count);
+      if (count <= 1) {
+        recordTimerRef.current = setTimeout(() => {
+          takeStartedAtRef.current = now();
+          takeStartedWallClockRef.current = Date.now();
+          takeStartSnapshotRef.current = {
+            pattern: clonePattern(patternRef.current),
+            bpm: bpmRef.current,
+            knobs: { ...knobsRef.current },
+          };
+          takeEventsRef.current = [];
+          recordingRef.current = true;
+          setRecording(true);
+          setRecordPhase("recording");
+          setRecordCountdown(null);
+          setRecordElapsedMs(0);
+          recordTickRef.current = setInterval(() => {
+            if (takeStartedWallClockRef.current === null) return;
+            setRecordElapsedMs(Date.now() - takeStartedWallClockRef.current);
+          }, 250);
+          pushTakeEvent("transport", "record");
+        }, 1000);
+        return;
+      }
+      count -= 1;
+      recordTimerRef.current = setTimeout(tick, 1000);
+    };
+
+    tick();
+  }, []);
+
+  const finishRecording = useCallback((reason: string) => {
+    if (recordTimerRef.current) {
+      clearTimeout(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (recordTickRef.current) {
+      clearInterval(recordTickRef.current);
+      recordTickRef.current = null;
+    }
+    if (stopFlashTimerRef.current) {
+      clearTimeout(stopFlashTimerRef.current);
+      stopFlashTimerRef.current = null;
+    }
+
+    if (recordPhase === "counting") {
+      setRecordPhase("stopped");
+      setRecordCountdown(null);
+      setRecordElapsedMs(0);
+      stopFlashTimerRef.current = setTimeout(() => setRecordPhase("idle"), 1200);
+      return;
+    }
+
+    if (!recordingRef.current && takeEventsRef.current.length === 0) return;
+    if (takeStartedWallClockRef.current !== null) {
+      lastTakeDurationMsRef.current = Date.now() - takeStartedWallClockRef.current;
+    }
+    if (recordingRef.current) {
+      pushTakeEvent("transport", reason);
+      lastTakeRef.current = takeEventsRef.current.slice();
+      const startSnapshot = takeStartSnapshotRef.current ?? {
+        pattern: clonePattern(patternRef.current),
+        bpm: bpmRef.current,
+        knobs: { ...knobsRef.current },
+      };
+      lastTakeSnapshotRef.current = {
+        ...startSnapshot,
+        events: takeEventsRef.current.slice(),
+        durationMs: lastTakeDurationMsRef.current,
+      };
+    } else {
+      // Preserve the last completed take snapshot when exporting or finishing
+      // after the take has already stopped, so we don't overwrite it with
+      // later edits to the current pattern.
+      lastTakeRef.current = takeEventsRef.current.slice();
+    }
+    takeStartedAtRef.current = null;
+    takeStartedWallClockRef.current = null;
+    takeStartSnapshotRef.current = null;
+    recordingRef.current = false;
+    setRecording(false);
+    setRecordPhase("stopped");
+    setRecordCountdown(null);
+    setRecordElapsedMs(lastTakeDurationMsRef.current);
+    stopFlashTimerRef.current = setTimeout(() => setRecordPhase("idle"), 1200);
+  }, [pushTakeEvent, recordPhase]);
+
   const togglePlay = useCallback(() => {
     const s = synthRef.current; if (!s) return;
-    if (playing) { s.stop(); setPlaying(false); setCur(-1); }
-    else { s.play(); setPlaying(true); }
-  }, [playing]);
+    if (playing) {
+      s.stop();
+      setPlaying(false);
+      setCur(-1);
+      finishRecording("stop");
+      return;
+    }
+
+    if (recordingRef.current && takeStartedAtRef.current === null) {
+      takeStartedAtRef.current = now();
+      takeEventsRef.current = [];
+    }
+
+    pushTakeEvent("transport", "play");
+    s.play();
+    setPlaying(true);
+  }, [playing, finishRecording, pushTakeEvent]);
+
+  const toggleRecord = useCallback(() => {
+    if (recordPhase === "counting") {
+      finishRecording("record");
+      return;
+    }
+    if (recordingRef.current || recordPhase === "recording") {
+      finishRecording("record");
+      return;
+    }
+    startRecording();
+  }, [finishRecording, recordPhase, startRecording]);
+
+  const setTrackedBpm = useCallback((next: number) => {
+    setBpm(next);
+    pushTakeEvent("bpm", String(next));
+  }, [pushTakeEvent]);
 
   const randomize = useCallback(() => {
-    const source = pickMidiPattern();
-    setPattern(mutateMidiPattern(source.pattern));
-    setBpm(source.bpm);
-    setActiveTrack(source.id);
-  }, []);
+    const generated = generatePattern(undefined, recentGeneratedSignaturesRef.current);
+    const signature = getPatternSignature(generated);
+    recentGeneratedSignaturesRef.current = [...recentGeneratedSignaturesRef.current.slice(-12), signature];
+    setPattern(generated);
+    setActiveTrack("generated");
+    pushTakeEvent("preset", "generated");
+  }, [pushTakeEvent]);
 
   const exportMidi = useCallback(() => {
     const blob = exportPatternAsMidi(pattern, bpm, activeTrack);
@@ -446,6 +667,28 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
     URL.revokeObjectURL(url);
   }, [pattern, bpm, activeTrack]);
 
+  const exportWav = useCallback(async () => {
+    finishRecording("export");
+    const snapshot = lastTakeSnapshotRef.current;
+    const blob = snapshot
+      ? await exportRecordedTakeAsWav(
+          snapshot.pattern,
+          snapshot.bpm,
+          snapshot.knobs,
+          snapshot.events,
+          snapshot.durationMs,
+          { tailSeconds: 0 },
+        )
+      : await exportPatternAsWav(pattern, bpm, knobs, { tailSeconds: 0 });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const exportBpm = snapshot?.bpm ?? bpm;
+    a.download = `virtual-rave-303-${activeTrack}-${exportBpm}bpm-${new Date().toISOString().slice(0, 10)}.wav`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }, [activeTrack, bpm, finishRecording, knobs, pattern]);
+
   useEffect(() => {
     if (!bridgeRef) return;
     bridgeRef.current = {
@@ -454,22 +697,25 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
         setPattern(clonePattern(source.pattern)); setBpm(source.bpm);
         setKnobs({ cutoff: track.cutoff, res: track.res, envMod: track.envMod, decay: track.decay });
         setActiveTrack(source.id);
+        pushTakeEvent("preset", source.id);
         if (!playing) { synthRef.current?.play(); setPlaying(true); }
       },
       loadTrackWithPattern: (track, pat) => {
         setPattern(padOrTruncate(pat)); setBpm(track.bpm);
         setKnobs({ cutoff: track.cutoff, res: track.res, envMod: track.envMod, decay: track.decay });
         setActiveTrack(track.id);
+        pushTakeEvent("preset", track.id);
         if (!playing) { synthRef.current?.play(); setPlaying(true); }
       },
-      stop: () => { synthRef.current?.stop(); setPlaying(false); setCur(-1); },
+      stop: () => { synthRef.current?.stop(); setPlaying(false); setCur(-1); finishRecording("stop"); },
       isPlaying: () => playing,
       activeTrack: () => activeTrack,
     };
-  }, [bridgeRef, playing, activeTrack]);
+  }, [bridgeRef, playing, activeTrack, finishRecording, pushTakeEvent]);
 
   // Piano key click  assign note letter to the currently selected step.
   const pressKey = (keyIdx: number) => {
+    pushTakeEvent("edit", `key:${KEY_NAMES[keyIdx]}`);
     setPattern(p => {
       const np = p.map(s => ({ ...s }));
       const s = np[selectedStep];
@@ -491,6 +737,7 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
   const selectStep = (i: number) => {
     if (i !== selectedStep) {
       setSelectedStep(i);
+      pushTakeEvent("edit", `select:${i + 1}`);
       return;
     }
     // Re-clicked the same selected step. Cycle octave or mute.
@@ -515,18 +762,26 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
       }
       return np;
     });
+    pushTakeEvent("edit", `cycle:${i + 1}`);
   };
 
-  const toggleAccent = (i: number) => setPattern(p => { const np = p.map(s => ({ ...s })); np[i].accent = !np[i].accent; return np; });
-  const toggleSlide  = (i: number) => setPattern(p => { const np = p.map(s => ({ ...s })); np[i].slide  = !np[i].slide;  return np; });
+  const toggleAccent = (i: number) => {
+    setPattern(p => { const np = p.map(s => ({ ...s })); np[i].accent = !np[i].accent; return np; });
+    pushTakeEvent("edit", `accent:${i + 1}`);
+  };
+  const toggleSlide  = (i: number) => {
+    setPattern(p => { const np = p.map(s => ({ ...s })); np[i].slide  = !np[i].slide;  return np; });
+    pushTakeEvent("edit", `slide:${i + 1}`);
+  };
 
   const presets = MIDI_PATTERNS.map(p => ({ id: p.id, l: p.title.toUpperCase() }));
 
   const loadPreset = (id: string) => {
     const source = MIDI_PATTERN_MAP[id] ?? MIDI_PATTERNS[0];
     setPattern(clonePattern(source.pattern));
-    setBpm(source.bpm);
+    setTrackedBpm(source.bpm);
     setActiveTrack(source.id);
+    pushTakeEvent("preset", source.id);
   };
 
   return (
@@ -557,17 +812,47 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
           <span className="ico">{playing ? "" : ""}</span>
           <span className="lbl">{playing ? "STOP" : "RUN"}</span>
         </button>
+        <button
+          className={`tb303__export tb303__record${recording || recordPhase === "counting" ? " is-on" : ""}`}
+          onClick={toggleRecord}
+          aria-pressed={recording || recordPhase === "counting"}
+          aria-label="record performance"
+          title="record performance"
+        >
+          <span className="ico"></span>
+          <span className="lbl">
+            {recordPhase === "counting"
+              ? recordCountdown?.toString() ?? "REC"
+              : recordPhase === "recording"
+                ? "STOP"
+                : recordPhase === "stopped"
+                  ? "DONE"
+                  : "RECORD"}
+          </span>
+          <span className="sub">
+            {recordPhase === "counting"
+              ? "COUNT"
+              : recordPhase === "recording"
+                ? formatDuration(recordElapsedMs)
+                : recordPhase === "stopped"
+                  ? formatDuration(recordElapsedMs || lastTakeDurationMsRef.current)
+                  : "TAKE"}
+          </span>
+        </button>
         <div className="tb303__bpm">
           <span className="k">TEMPO</span>
           <div className="bpm-ctl">
-            <button onClick={() => setBpm(b => Math.max(60, b - 1))}></button>
+            <button onClick={() => setTrackedBpm(Math.max(60, bpm - 1))}></button>
             <span className="bpm-v">{bpm}</span>
-            <button onClick={() => setBpm(b => Math.min(220, b + 1))}>+</button>
+            <button onClick={() => setTrackedBpm(Math.min(220, bpm + 1))}>+</button>
           </div>
           <span className="k">BPM</span>
         </div>
         <button className="tb303__export" onClick={exportMidi} title="download .mid" data-tut="export">
           <span className="ico"></span><span className="lbl">EXPORT</span><span className="sub">.MID</span>
+        </button>
+        <button className="tb303__export" onClick={() => void exportWav()} title="download .wav">
+          <span className="ico"></span><span className="lbl">EXPORT</span><span className="sub">WAV</span>
         </button>
         <button className="tb303__export tb303__random" onClick={randomize} title="randomize pattern">
           <span className="ico"></span><span className="lbl">RANDOM</span><span className="sub">PATT</span>
@@ -580,10 +865,10 @@ export function TB303Sequencer({ bridgeRef }: { bridgeRef: MutableRefObject<Stud
         <AccentSlideRows pattern={pattern} onAccent={toggleAccent} onSlide={toggleSlide} />
 
         <div className="tb303__knobs" data-tut="knobs">
-          <Knob label="CUTOFF"    value={knobs.cutoff}  onChange={v => setKnobs(k => ({ ...k, cutoff: v }))} />
-          <Knob label="RESONANCE" value={knobs.res}      onChange={v => setKnobs(k => ({ ...k, res: v }))} />
-          <Knob label="ENVMOD"   value={knobs.envMod}  onChange={v => setKnobs(k => ({ ...k, envMod: v }))} />
-          <Knob label="DECAY"     value={knobs.decay}   onChange={v => setKnobs(k => ({ ...k, decay: v }))} />
+          <Knob label="CUTOFF"    value={knobs.cutoff}  onChange={v => { setKnobs(k => ({ ...k, cutoff: v })); pushTakeEvent("knob", `cutoff:${v.toFixed(3)}`); }} />
+          <Knob label="RESONANCE" value={knobs.res}      onChange={v => { setKnobs(k => ({ ...k, res: v })); pushTakeEvent("knob", `res:${v.toFixed(3)}`); }} />
+          <Knob label="ENVMOD"   value={knobs.envMod}  onChange={v => { setKnobs(k => ({ ...k, envMod: v })); pushTakeEvent("knob", `envMod:${v.toFixed(3)}`); }} />
+          <Knob label="DECAY"     value={knobs.decay}   onChange={v => { setKnobs(k => ({ ...k, decay: v })); pushTakeEvent("knob", `decay:${v.toFixed(3)}`); }} />
         </div>
       </div>
 
