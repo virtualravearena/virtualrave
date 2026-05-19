@@ -10,6 +10,11 @@ out/
 .env.*
 !.env.example
 .mcp.json
+.playwright-mcp/
+.claude/
+.codex/
+.agents/
+.cursor/
 .vercel/
 
 # generated files
@@ -21,8 +26,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # private docs for local work only
-MANUAL.md
-README.md
+*.md
+
+# local screenshots and scratch exports
+studio-mobile-*.png
 
 # os and editor noise
 .DS_Store
