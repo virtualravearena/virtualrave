@@ -208,6 +208,7 @@ function TerminalLog({ entries }: { entries: string[] }) {
 interface ClaimTerminalProps {
   onConnect: () => void;
   orbSession: OrbSession | null;
+  onMintSuccess?: () => void;
 }
 
 type MintDestination = "orb" | "wallet" | "custom";
@@ -224,7 +225,7 @@ function getOrbWalletAddress(session: OrbSession | null): Address | null {
   return candidate && isAddress(candidate) ? getAddress(candidate) : null;
 }
 
-export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
+export function ClaimTerminal({ onConnect, orbSession, onMintSuccess }: ClaimTerminalProps) {
   const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient({ chainId: lensMainnet.id });
   const publicClient = usePublicClient({ chainId: lensMainnet.id });
@@ -248,6 +249,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const [ceremonyError, setCeremonyError] = useState<string | null>(null);
   const [totalClaimedAfter, setTotalClaimedAfter] = useState<number | null>(null);
   const claimButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mintSuccessNotifiedRef = useRef(false);
   const total = 303;
   const orbWalletAddress = getOrbWalletAddress(orbSession);
   const lensProfileCostWei = getGrossMintCostWei(qty);
@@ -320,8 +322,12 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       });
       setTxStatus("success");
       setStep(txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-6)}` : "confirmed");
+      if (!mintSuccessNotifiedRef.current) {
+        mintSuccessNotifiedRef.current = true;
+        onMintSuccess?.();
+      }
     }
-  }, [txConfirmed, txHash, refetchSupply]);
+  }, [txConfirmed, txHash, refetchSupply, onMintSuccess]);
 
   useEffect(() => {
     if (!orbWalletAddress && mintDestination === "orb") {
@@ -682,6 +688,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     setStep("");
     setQty(1);
     setDebugLog([]);
+    mintSuccessNotifiedRef.current = false;
   };
 
   const walletDisplay = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
