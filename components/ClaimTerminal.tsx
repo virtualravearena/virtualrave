@@ -499,23 +499,27 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       return;
     }
 
-    if (paymentSource === "lensProfile" && !sessionClient) {
+    let activeSessionClient = sessionClient;
+
+    if (paymentSource === "lensProfile" && !activeSessionClient) {
       setTxStatus("busy");
-      setStep("LENS AUTH...");
-      appendDebug("lens auth required, starting Lens login", {
+      setStep("SYNCING ORB SESSION...");
+      appendDebug("Lens session missing, resuming from Orb id-access tokens", {
         lensAccount: orbWalletAddress,
         signer: address,
         paymentSource,
       });
-      const s = await lensLogin();
-      appendDebug("lens login completed", {
-        success: Boolean(s),
-        returnedSessionClient: Boolean(s),
+      activeSessionClient = await lensLogin();
+      appendDebug("Orb Lens session resume completed", {
+        success: Boolean(activeSessionClient),
+        returnedSessionClient: Boolean(activeSessionClient),
       });
-      setTxStatus("idle");
-      setStep("");
-      if (!s) return;
-      return;
+      if (!activeSessionClient) {
+        setTxStatus("error");
+        setStep("Reconnect Orb to collect with Lens profile.");
+        onConnect();
+        return;
+      }
     }
 
     setTxStatus("busy");
@@ -567,7 +571,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         return;
       }
 
-      if (!sessionClient) {
+      if (!activeSessionClient) {
         throw new Error("Lens session is missing for Lens profile payment.");
       }
 
@@ -602,7 +606,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       });
 
       setStep("AWAITING LENS API...");
-      const actionResult = await executePostAction(sessionClient, {
+      const actionResult = await executePostAction(activeSessionClient, {
         post,
         action: { unknown: { address: actionAddress, params } },
       }).match(
@@ -880,7 +884,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
                 : paymentSource === "eoa" && !isConnected
                 ? "CONNECT WALLET TO COLLECT"
                 : paymentSource === "lensProfile" && !sessionClient
-                ? "AUTH LENS PROFILE TO COLLECT"
+                ? "SYNC ORB SESSION TO COLLECT"
                 : `COLLECT VR 303 x 0${qty} TO ${destinationLabel}`}
               <span className="mini" style={{ display: "block" }}>
                 {txStatus === "busy"
@@ -894,7 +898,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
                   : paymentSource === "eoa" && !isConnected
                   ? "CONNECT A WALLET ON LENS MAINNET"
                   : paymentSource === "lensProfile" && !sessionClient
-                  ? "USES ORB TOKENS FIRST, ADMIN WALLET ONLY IF NEEDED"
+                  ? "USING ORB ID ACCESS"
                   : `${visibleCostDisplay} GHO  DESTINATION ${recipientDisplay}`}
               </span>
             </span>

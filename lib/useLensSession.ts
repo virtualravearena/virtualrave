@@ -1,13 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useWalletClient } from "wagmi";
 import { getAddress, isAddress } from "viem";
 import { InMemoryStorageProvider } from "@lens-protocol/storage";
-import { PublicClient, evmAddress, mainnet, type SessionClient } from "@lens-protocol/client";
-import { signMessageWith } from "@lens-protocol/client/viem";
-import { lensMainnet } from "./wagmi";
-import { getLensPublicClient, LENS_APP_ID } from "./lensClient";
+import { PublicClient, mainnet, type SessionClient } from "@lens-protocol/client";
 import { orbLogin } from "./orbLogin";
 import type { OrbSession } from "@/components/OrbLoginPanel";
 
@@ -47,7 +43,7 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbR
   const accessToken = getStringField(orbSession?.accessToken);
   const idToken = getStringField(orbSession?.idToken);
 
-  if (!accessToken) return { client: null, needsReauth: false };
+  if (!accessToken) return { client: null, needsReauth: Boolean(orbSession) };
 
   const synced = await orb.syncSession({
     accessToken,
@@ -88,7 +84,6 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbR
 }
 
 export function useLensSession(orbSession: OrbSession | null): UseLensSessionResult {
-  const { data: walletClient } = useWalletClient({ chainId: lensMainnet.id });
   const [sessionClient, setSessionClient] = useState<SessionClient | null>(null);
   const [status, setStatus] = useState<LensSessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +92,6 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
   const candidate = orbSession?.userId ?? orbSession?.account ?? null;
   const lensAccountAddress =
     candidate && isAddress(candidate) ? getAddress(candidate) : null;
-  const signerAddress = walletClient?.account.address ?? null;
 
   useEffect(() => {
     if (!lensAccountAddress) {
@@ -108,7 +102,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
     }
   }, [lensAccountAddress]);
 
-  const login = useCallback(async () => {
+  const resumeOrbSessionIntoState = useCallback(async (isCurrent: () => boolean = () => true) => {
     if (!lensAccountAddress) return null;
     if (sessionClient) return sessionClient;
 
@@ -118,6 +112,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
 
     try {
       const orbResume = await resumeSessionFromOrb(orbSession);
+      if (!isCurrent()) return null;
       if (orbResume.client) {
         setSessionClient(orbResume.client);
         setStatus("authenticated");
@@ -130,56 +125,40 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
         setError("Orb session expired. Scan Orb again.");
         return null;
       }
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-
-    if (!walletClient) {
+      setSessionClient(null);
       setStatus("idle");
       return null;
+    } catch (err) {
+      if (!isCurrent()) return null;
+      setSessionClient(null);
+      setNeedsReauth(true);
+      setStatus("error");
+      setError(errorMessage(err));
+      return null;
     }
+  }, [lensAccountAddress, sessionClient, orbSession]);
 
-    const publicClient = getLensPublicClient();
-    const signer = walletClient.account.address;
-    const sign = signMessageWith(walletClient);
+  useEffect(() => {
+    if (!lensAccountAddress || sessionClient) return;
+    let active = true;
+    void resumeOrbSessionIntoState(() => active);
+    return () => {
+      active = false;
+    };
+  }, [lensAccountAddress, resumeOrbSessionIntoState, sessionClient]);
 
-    const ownerResult = await publicClient.login({
-      accountOwner: {
-        account: evmAddress(lensAccountAddress),
-        owner: evmAddress(signer),
-        app: evmAddress(LENS_APP_ID),
-      },
-      signMessage: sign,
-    });
+  const login = useCallback(async () => {
+    if (!lensAccountAddress) return null;
+    if (sessionClient) return sessionClient;
 
-    if (ownerResult.isOk()) {
-      const client = ownerResult.value;
-      setSessionClient(client);
-      setStatus("authenticated");
-      return client;
+    const client = await resumeOrbSessionIntoState();
+    if (!client) {
+      setNeedsReauth(true);
+      setStatus("error");
+      setError("Orb session expired. Scan Orb again.");
     }
-
-    const managerResult = await publicClient.login({
-      accountManager: {
-        account: evmAddress(lensAccountAddress),
-        manager: evmAddress(signer),
-        app: evmAddress(LENS_APP_ID),
-      },
-      signMessage: sign,
-    });
-
-    if (managerResult.isOk()) {
-      const client = managerResult.value;
-      setSessionClient(client);
-      setStatus("authenticated");
-      return client;
-    }
-
-    const msg = `${errorMessage(ownerResult.error)} / ${errorMessage(managerResult.error)}`;
-    setStatus("error");
-    setError(msg);
-    return null;
-  }, [walletClient, lensAccountAddress, sessionClient, orbSession]);
+    return client;
+  }, [lensAccountAddress, sessionClient, resumeOrbSessionIntoState]);
 
   const logout = useCallback(() => {
     setSessionClient(null);
