@@ -16,7 +16,7 @@ export const VR303_DEPLOY_BLOCK: bigint = (() => {
 export const VR303_DEPLOY_BLOCK_IS_DEFAULT =
   VR303_DEPLOY_BLOCK === VR303_DEPLOY_BLOCK_DEFAULT;
 
-export const LENSCAN_BASE = "https://scan.lens.xyz";
+export const LENSCAN_BASE = "https://explorer.lens.xyz";
 
 export function lenscanTxUrl(txHash: string): string {
   return `${LENSCAN_BASE}/tx/${txHash}`;
