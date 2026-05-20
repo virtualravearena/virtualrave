@@ -12,7 +12,8 @@ interface CollectorTileProps {
 
 export function CollectorTile({ record, isYours, onOpen }: CollectorTileProps) {
   const [imgFailed, setImgFailed] = useState(false);
-  const artworkUrl = getVr303Artwork(record.tokenId);
+  const displayEdition = record.metadata?.edition ?? record.tokenId + 1;
+  const artworkUrl = record.metadata?.image ?? getVr303Artwork(record.tokenId);
   const showFallback = !artworkUrl || imgFailed;
 
   return (
@@ -20,10 +21,10 @@ export function CollectorTile({ record, isYours, onOpen }: CollectorTileProps) {
       type="button"
       className={`cwall-tile${isYours ? " cwall-tile--yours" : ""}`}
       onClick={() => onOpen(record)}
-      aria-label={`Edition ${padTokenId(record.tokenId)} of 303, collected by ${record.owner}`}
+      aria-label={`Edition ${padTokenId(displayEdition)} of 303, token ${record.tokenId}, collected by ${record.owner}`}
     >
       <span className="cwall-tile__corner cwall-tile__corner--tl">
-        {padTokenId(record.tokenId)} / 303
+        {padTokenId(displayEdition)} / 303
       </span>
 
       {showFallback ? (
@@ -33,7 +34,7 @@ export function CollectorTile({ record, isYours, onOpen }: CollectorTileProps) {
         <img
           className="cwall-tile__img"
           src={artworkUrl}
-          alt={`VR 303 edition ${record.tokenId}`}
+          alt={`VR 303 edition ${displayEdition}`}
           loading="lazy"
           decoding="async"
           onError={() => setImgFailed(true)}

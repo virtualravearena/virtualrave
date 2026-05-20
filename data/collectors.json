@@ -1,0 +1,39 @@
+{
+  "collectors": [
+    {
+      "tokenId": 0,
+      "owner": "0xAe6b19b637FDCB9c5C05238E5279754C39DE76A9"
+    },
+    {
+      "tokenId": 1,
+      "owner": "0xAe6b19b637FDCB9c5C05238E5279754C39DE76A9"
+    },
+    {
+      "tokenId": 2,
+      "owner": "0xAe6b19b637FDCB9c5C05238E5279754C39DE76A9"
+    },
+    {
+      "tokenId": 3,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 4,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 5,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 6,
+      "owner": "0x417EcaE932D3bAE2d93a2af6dA91441d46532A7C"
+    },
+    {
+      "tokenId": 7,
+      "owner": "0x72423fe5168185aFB26390B5B9709aB58d20e3D8"
+    }
+  ],
+  "totalClaimed": 8,
+  "fetchedAt": 1779254683795,
+  "seeded": true
+}

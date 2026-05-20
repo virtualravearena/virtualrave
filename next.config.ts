@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   webpack: (config) => {
     // @wagmi/connectors bundles MetaMask SDK which requires React Native storage
     // and WalletConnect which requires pino-pretty — neither exists in this env.

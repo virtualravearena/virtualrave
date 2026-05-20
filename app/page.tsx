@@ -15,7 +15,6 @@ import { EventsSection } from "@/components/EventsSection";
 import { About } from "@/components/About";
 import { Footer } from "@/components/Footer";
 import { WalletModal } from "@/components/WalletModal";
-import { CeremonyPreviewButton } from "@/components/mint/CeremonyPreviewButton";
 import type { StudioBridge } from "@/components/Studio";
 import type { OrbSession } from "@/components/OrbLoginPanel";
 
@@ -65,7 +64,6 @@ export default function Home() {
           onOrbLogout={() => setOrbSession(null)}
         />
       )}
-      <CeremonyPreviewButton />
     </div>
   );
 }

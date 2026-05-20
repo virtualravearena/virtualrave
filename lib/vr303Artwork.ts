@@ -308,5 +308,5 @@ export const VR303_TOKEN_IMAGES: Readonly<Record<number, string>> = {
 };
 
 export function getVr303Artwork(tokenId: number): string | undefined {
-  return VR303_TOKEN_IMAGES[tokenId];
+  return VR303_TOKEN_IMAGES[tokenId + 1];
 }

@@ -20,11 +20,16 @@ export function CollectorsWall({ mintTick = 0 }: CollectorsWallProps) {
   const [yoursOnly, setYoursOnly] = useState(false);
   const [active, setActive] = useState<CollectorRecord | null>(null);
   const firstMount = useRef(true);
+  const dataRef = useRef<CollectorsResponse | null>(null);
 
-  const load = useCallback(async (fresh: boolean) => {
-    setStatus((s) => (data ? s : "loading"));
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const load = useCallback(async () => {
+    setStatus((current) => (dataRef.current ? current : "loading"));
     try {
-      const res = await fetch(`/api/collectors${fresh ? "?fresh=1" : ""}`, {
+      const res = await fetch(`/api/collectors?ts=${Date.now()}`, {
         cache: "no-store",
       });
       if (!res.ok) {
@@ -38,10 +43,10 @@ export function CollectorsWall({ mintTick = 0 }: CollectorsWallProps) {
       setStatus("error");
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [data]);
+  }, []);
 
   useEffect(() => {
-    void load(false);
+    void load();
   }, [load]);
 
   // Refetch (fresh) on every mintTick change after first mount.
@@ -50,7 +55,7 @@ export function CollectorsWall({ mintTick = 0 }: CollectorsWallProps) {
       firstMount.current = false;
       return;
     }
-    void load(true);
+    void load();
   }, [mintTick, load]);
 
   const lowerAddress = address ? address.toLowerCase() : null;
@@ -133,7 +138,7 @@ export function CollectorsWall({ mintTick = 0 }: CollectorsWallProps) {
               <button
                 type="button"
                 className="cwall__retry"
-                onClick={() => void load(true)}
+                onClick={() => void load()}
               >
                 // signal lost — retry
               </button>

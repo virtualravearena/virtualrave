@@ -322,10 +322,25 @@ export function ClaimTerminal({ onConnect, orbSession, onMintSuccess }: ClaimTer
       });
       setTxStatus("success");
       setStep(txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-6)}` : "confirmed");
-      if (!mintSuccessNotifiedRef.current) {
-        mintSuccessNotifiedRef.current = true;
+      if (txHash) {
+        (async () => {
+          try {
+            const res = await fetch("/api/collectors/refresh", {
+              method: "POST",
+              cache: "no-store",
+            });
+            const body = await res.json().catch(() => null);
+            appendDebug("collectors/refresh response", { status: res.status, body });
+          } catch (err) {
+            appendDebug("collectors/refresh failed", toDebugValue(err));
+          } finally {
+            onMintSuccess?.();
+          }
+        })();
+      } else {
         onMintSuccess?.();
       }
+      if (!mintSuccessNotifiedRef.current) mintSuccessNotifiedRef.current = true;
     }
   }, [txConfirmed, txHash, refetchSupply, onMintSuccess]);
 
