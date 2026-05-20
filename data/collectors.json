@@ -67,9 +67,13 @@
     {
       "tokenId": 16,
       "owner": "0x4Fd8A2C1Fc2ECF37B97201333D516E4E17F7EF11"
+    },
+    {
+      "tokenId": 17,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
     }
   ],
-  "totalClaimed": 17,
-  "fetchedAt": 1779293226744,
+  "totalClaimed": 18,
+  "fetchedAt": 1779315665969,
   "seeded": true
 }
