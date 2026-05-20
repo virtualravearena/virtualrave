@@ -260,7 +260,7 @@ export function OrbLoginPanel({
 
     try {
       const nextSession = await orb.connectWithQr({
-        credentials: "id_access_refresh",
+        credentials: "id_access",
         signal: controller.signal,
         onInit: ({ qrCode: nextQrCode, deepLink: nextDeepLink }) => {
           setQrCode(nextQrCode);

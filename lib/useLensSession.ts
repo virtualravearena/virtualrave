@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useWalletClient } from "wagmi";
 import { getAddress, isAddress } from "viem";
-import { InMemoryStorageProvider } from "@lens-protocol/storage";
-import { PublicClient, evmAddress, mainnet, type SessionClient } from "@lens-protocol/client";
-import { signMessageWith } from "@lens-protocol/client/viem";
-import { lensMainnet } from "./wagmi";
-import { getLensPublicClient, LENS_APP_ID } from "./lensClient";
+import {
+  CredentialsStorage,
+  InMemoryStorageProvider,
+  type Credentials,
+} from "@lens-protocol/storage";
+import { PublicClient, mainnet, type SessionClient } from "@lens-protocol/client";
 import { orbLogin } from "./orbLogin";
 import type { OrbSession } from "@/components/OrbLoginPanel";
 
@@ -17,6 +17,7 @@ interface UseLensSessionResult {
   sessionClient: SessionClient | null;
   status: LensSessionStatus;
   error: string | null;
+  needsReauth: boolean;
   login: () => Promise<SessionClient | null>;
   logout: () => void;
 }
@@ -37,41 +38,51 @@ function getStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-async function resumeSessionFromOrb(orbSession: OrbSession | null) {
+type OrbResumeResult = {
+  client: SessionClient | null;
+  needsReauth: boolean;
+  error: string | null;
+};
+
+async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbResumeResult> {
   const accessToken = getStringField(orbSession?.accessToken);
-  const refreshToken = getStringField(orbSession?.refreshToken);
-  let idToken = getStringField(orbSession?.idToken);
-  let nextAccessToken = accessToken;
-  let nextRefreshToken = refreshToken;
+  const idToken = getStringField(orbSession?.idToken);
 
-  if (!nextAccessToken || !nextRefreshToken) return null;
-
-  if (!idToken && nextRefreshToken) {
-    const refreshed = await orb.refresh({ refreshToken: nextRefreshToken });
-    nextAccessToken = getStringField(refreshed.accessToken) ?? nextAccessToken;
-    nextRefreshToken = getStringField(refreshed.refreshToken) ?? nextRefreshToken;
-    idToken = getStringField(refreshed.idToken) ?? idToken;
+  if (!accessToken) {
+    return {
+      client: null,
+      needsReauth: Boolean(orbSession),
+      error: orbSession ? "Orb session did not include an access token." : null,
+    };
   }
 
-  if (!nextAccessToken || !nextRefreshToken || !idToken) return null;
+  const synced = await orb.syncSession({
+    accessToken,
+    ...(idToken ? { idToken } : {}),
+  });
+
+  if (!synced?.accessToken || !synced.idToken) {
+    return {
+      client: null,
+      needsReauth: true,
+      error: "Orb session is missing Lens access or id token.",
+    };
+  }
 
   const storage = new InMemoryStorageProvider();
-  const now = Date.now();
-  storage.setItem(
-    "lens.mainnet.credentials",
-    JSON.stringify({
-      data: {
-        accessToken: nextAccessToken,
-        refreshToken: nextRefreshToken,
-        idToken,
-      },
-      metadata: {
-        version: 3,
-        createdAt: now,
-        updatedAt: now,
-      },
-    }),
-  );
+  const stored = await CredentialsStorage.from(storage, "mainnet").set({
+    accessToken: synced.accessToken,
+    idToken: synced.idToken,
+    refreshToken: getStringField(synced.refreshToken) ?? "",
+  } as Credentials);
+
+  if (stored.isErr()) {
+    return {
+      client: null,
+      needsReauth: true,
+      error: errorMessage(stored.error),
+    };
+  }
 
   const publicClient = PublicClient.create({
     environment: mainnet,
@@ -80,98 +91,88 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null) {
   });
   const result = await publicClient.resumeSession();
 
-  return result.isOk() ? result.value : null;
+  return result.isOk()
+    ? { client: result.value, needsReauth: false, error: null }
+    : { client: null, needsReauth: true, error: errorMessage(result.error) };
 }
 
 export function useLensSession(orbSession: OrbSession | null): UseLensSessionResult {
-  const { data: walletClient } = useWalletClient({ chainId: lensMainnet.id });
   const [sessionClient, setSessionClient] = useState<SessionClient | null>(null);
   const [status, setStatus] = useState<LensSessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
   const candidate = orbSession?.userId ?? orbSession?.account ?? null;
   const lensAccountAddress =
     candidate && isAddress(candidate) ? getAddress(candidate) : null;
-  const signerAddress = walletClient?.account.address ?? null;
 
   useEffect(() => {
     if (!lensAccountAddress) {
       setSessionClient(null);
       setStatus("idle");
       setError(null);
+      setNeedsReauth(false);
     }
   }, [lensAccountAddress]);
 
-  const login = useCallback(async () => {
+  const resumeOrbSessionIntoState = useCallback(async (isCurrent: () => boolean = () => true) => {
     if (!lensAccountAddress) return null;
     if (sessionClient) return sessionClient;
 
     setStatus("authenticating");
     setError(null);
+    setNeedsReauth(false);
 
     try {
-      const orbClient = await resumeSessionFromOrb(orbSession);
-      if (orbClient) {
-        setSessionClient(orbClient);
+      const orbResume = await resumeSessionFromOrb(orbSession);
+      if (!isCurrent()) return null;
+      if (orbResume.client) {
+        setSessionClient(orbResume.client);
         setStatus("authenticated");
-        return orbClient;
+        return orbResume.client;
       }
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-
-    if (!walletClient) {
+      if (orbResume.needsReauth) {
+        setSessionClient(null);
+        setNeedsReauth(true);
+        setStatus("error");
+        setError(orbResume.error ?? "Orb session expired. Scan Orb again.");
+        return null;
+      }
+      setSessionClient(null);
       setStatus("idle");
       return null;
+    } catch (err) {
+      if (!isCurrent()) return null;
+      setSessionClient(null);
+      setNeedsReauth(true);
+      setStatus("error");
+      setError(errorMessage(err));
+      return null;
     }
+  }, [lensAccountAddress, sessionClient, orbSession]);
 
-    const publicClient = getLensPublicClient();
-    const signer = walletClient.account.address;
-    const sign = signMessageWith(walletClient);
+  useEffect(() => {
+    if (!lensAccountAddress || sessionClient) return;
+    let active = true;
+    void resumeOrbSessionIntoState(() => active);
+    return () => {
+      active = false;
+    };
+  }, [lensAccountAddress, resumeOrbSessionIntoState, sessionClient]);
 
-    const ownerResult = await publicClient.login({
-      accountOwner: {
-        account: evmAddress(lensAccountAddress),
-        owner: evmAddress(signer),
-        app: evmAddress(LENS_APP_ID),
-      },
-      signMessage: sign,
-    });
+  const login = useCallback(async () => {
+    if (!lensAccountAddress) return null;
+    if (sessionClient) return sessionClient;
 
-    if (ownerResult.isOk()) {
-      const client = ownerResult.value;
-      setSessionClient(client);
-      setStatus("authenticated");
-      return client;
-    }
-
-    const managerResult = await publicClient.login({
-      accountManager: {
-        account: evmAddress(lensAccountAddress),
-        manager: evmAddress(signer),
-        app: evmAddress(LENS_APP_ID),
-      },
-      signMessage: sign,
-    });
-
-    if (managerResult.isOk()) {
-      const client = managerResult.value;
-      setSessionClient(client);
-      setStatus("authenticated");
-      return client;
-    }
-
-    const msg = `${errorMessage(ownerResult.error)} / ${errorMessage(managerResult.error)}`;
-    setStatus("error");
-    setError(msg);
-    return null;
-  }, [walletClient, lensAccountAddress, sessionClient, orbSession]);
+    return resumeOrbSessionIntoState();
+  }, [lensAccountAddress, sessionClient, resumeOrbSessionIntoState]);
 
   const logout = useCallback(() => {
     setSessionClient(null);
     setStatus("idle");
     setError(null);
+    setNeedsReauth(false);
   }, []);
 
-  return { sessionClient, status, error, login, logout };
+  return { sessionClient, status, error, needsReauth, login, logout };
 }
