@@ -230,7 +230,13 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const publicClient = usePublicClient({ chainId: lensMainnet.id });
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
-  const { sessionClient, status: lensStatus, login: lensLogin } = useLensSession(orbSession);
+  const {
+    sessionClient,
+    status: lensStatus,
+    error: lensError,
+    needsReauth: lensNeedsReauth,
+    login: lensLogin,
+  } = useLensSession(orbSession);
   const [qty, setQty] = useState(1);
   const [mintDestination, setMintDestination] = useState<MintDestination>(
     orbSession ? "orb" : "wallet",
@@ -394,6 +400,8 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         : null,
       orbWalletAddress,
       lensStatus,
+      lensError,
+      lensNeedsReauth,
       hasSessionClient: Boolean(sessionClient),
       connectedWalletBalanceWei: payerBalance?.value,
       connectedWalletBalanceFormatted: payerBalance?.formatted,
@@ -513,6 +521,9 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       appendDebug("Orb Lens session resume completed", {
         success: Boolean(activeSessionClient),
         returnedSessionClient: Boolean(activeSessionClient),
+        lensStatus,
+        lensError,
+        lensNeedsReauth,
       });
       if (!activeSessionClient) {
         setTxStatus("error");

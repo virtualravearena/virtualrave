@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAddress, isAddress } from "viem";
-import { InMemoryStorageProvider } from "@lens-protocol/storage";
+import {
+  CredentialsStorage,
+  InMemoryStorageProvider,
+  type Credentials,
+} from "@lens-protocol/storage";
 import { PublicClient, mainnet, type SessionClient } from "@lens-protocol/client";
 import { orbLogin } from "./orbLogin";
 import type { OrbSession } from "@/components/OrbLoginPanel";
@@ -37,13 +41,20 @@ function getStringField(value: unknown) {
 type OrbResumeResult = {
   client: SessionClient | null;
   needsReauth: boolean;
+  error: string | null;
 };
 
 async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbResumeResult> {
   const accessToken = getStringField(orbSession?.accessToken);
   const idToken = getStringField(orbSession?.idToken);
 
-  if (!accessToken) return { client: null, needsReauth: Boolean(orbSession) };
+  if (!accessToken) {
+    return {
+      client: null,
+      needsReauth: Boolean(orbSession),
+      error: orbSession ? "Orb session did not include an access token." : null,
+    };
+  }
 
   const synced = await orb.syncSession({
     accessToken,
@@ -51,25 +62,27 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbR
   });
 
   if (!synced?.accessToken || !synced.idToken) {
-    return { client: null, needsReauth: true };
+    return {
+      client: null,
+      needsReauth: true,
+      error: "Orb session is missing Lens access or id token.",
+    };
   }
 
   const storage = new InMemoryStorageProvider();
-  const now = Date.now();
-  storage.setItem(
-    "lens.mainnet.credentials",
-    JSON.stringify({
-      data: {
-        accessToken: synced.accessToken,
-        idToken: synced.idToken,
-      },
-      metadata: {
-        version: 3,
-        createdAt: now,
-        updatedAt: now,
-      },
-    }),
-  );
+  const stored = await CredentialsStorage.from(storage, "mainnet").set({
+    accessToken: synced.accessToken,
+    idToken: synced.idToken,
+    refreshToken: getStringField(synced.refreshToken) ?? "",
+  } as Credentials);
+
+  if (stored.isErr()) {
+    return {
+      client: null,
+      needsReauth: true,
+      error: errorMessage(stored.error),
+    };
+  }
 
   const publicClient = PublicClient.create({
     environment: mainnet,
@@ -79,8 +92,8 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbR
   const result = await publicClient.resumeSession();
 
   return result.isOk()
-    ? { client: result.value, needsReauth: false }
-    : { client: null, needsReauth: true };
+    ? { client: result.value, needsReauth: false, error: null }
+    : { client: null, needsReauth: true, error: errorMessage(result.error) };
 }
 
 export function useLensSession(orbSession: OrbSession | null): UseLensSessionResult {
@@ -122,7 +135,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
         setSessionClient(null);
         setNeedsReauth(true);
         setStatus("error");
-        setError("Orb session expired. Scan Orb again.");
+        setError(orbResume.error ?? "Orb session expired. Scan Orb again.");
         return null;
       }
       setSessionClient(null);
@@ -151,13 +164,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
     if (!lensAccountAddress) return null;
     if (sessionClient) return sessionClient;
 
-    const client = await resumeOrbSessionIntoState();
-    if (!client) {
-      setNeedsReauth(true);
-      setStatus("error");
-      setError("Orb session expired. Scan Orb again.");
-    }
-    return client;
+    return resumeOrbSessionIntoState();
   }, [lensAccountAddress, sessionClient, resumeOrbSessionIntoState]);
 
   const logout = useCallback(() => {
