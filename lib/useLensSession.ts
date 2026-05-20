@@ -17,6 +17,7 @@ interface UseLensSessionResult {
   sessionClient: SessionClient | null;
   status: LensSessionStatus;
   error: string | null;
+  needsReauth: boolean;
   login: () => Promise<SessionClient | null>;
   logout: () => void;
 }
@@ -37,23 +38,25 @@ function getStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-async function resumeSessionFromOrb(orbSession: OrbSession | null) {
+type OrbResumeResult = {
+  client: SessionClient | null;
+  needsReauth: boolean;
+};
+
+async function resumeSessionFromOrb(orbSession: OrbSession | null): Promise<OrbResumeResult> {
   const accessToken = getStringField(orbSession?.accessToken);
-  const refreshToken = getStringField(orbSession?.refreshToken);
-  let idToken = getStringField(orbSession?.idToken);
-  let nextAccessToken = accessToken;
-  let nextRefreshToken = refreshToken;
+  const idToken = getStringField(orbSession?.idToken);
 
-  if (!nextAccessToken || !nextRefreshToken) return null;
+  if (!accessToken) return { client: null, needsReauth: false };
 
-  if (!idToken && nextRefreshToken) {
-    const refreshed = await orb.refresh({ refreshToken: nextRefreshToken });
-    nextAccessToken = getStringField(refreshed.accessToken) ?? nextAccessToken;
-    nextRefreshToken = getStringField(refreshed.refreshToken) ?? nextRefreshToken;
-    idToken = getStringField(refreshed.idToken) ?? idToken;
+  const synced = await orb.syncSession({
+    accessToken,
+    ...(idToken ? { idToken } : {}),
+  });
+
+  if (!synced?.accessToken || !synced.idToken) {
+    return { client: null, needsReauth: true };
   }
-
-  if (!nextAccessToken || !nextRefreshToken || !idToken) return null;
 
   const storage = new InMemoryStorageProvider();
   const now = Date.now();
@@ -61,9 +64,8 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null) {
     "lens.mainnet.credentials",
     JSON.stringify({
       data: {
-        accessToken: nextAccessToken,
-        refreshToken: nextRefreshToken,
-        idToken,
+        accessToken: synced.accessToken,
+        idToken: synced.idToken,
       },
       metadata: {
         version: 3,
@@ -80,7 +82,9 @@ async function resumeSessionFromOrb(orbSession: OrbSession | null) {
   });
   const result = await publicClient.resumeSession();
 
-  return result.isOk() ? result.value : null;
+  return result.isOk()
+    ? { client: result.value, needsReauth: false }
+    : { client: null, needsReauth: true };
 }
 
 export function useLensSession(orbSession: OrbSession | null): UseLensSessionResult {
@@ -88,6 +92,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
   const [sessionClient, setSessionClient] = useState<SessionClient | null>(null);
   const [status, setStatus] = useState<LensSessionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
   const candidate = orbSession?.userId ?? orbSession?.account ?? null;
   const lensAccountAddress =
@@ -99,6 +104,7 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
       setSessionClient(null);
       setStatus("idle");
       setError(null);
+      setNeedsReauth(false);
     }
   }, [lensAccountAddress]);
 
@@ -108,13 +114,21 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
 
     setStatus("authenticating");
     setError(null);
+    setNeedsReauth(false);
 
     try {
-      const orbClient = await resumeSessionFromOrb(orbSession);
-      if (orbClient) {
-        setSessionClient(orbClient);
+      const orbResume = await resumeSessionFromOrb(orbSession);
+      if (orbResume.client) {
+        setSessionClient(orbResume.client);
         setStatus("authenticated");
-        return orbClient;
+        return orbResume.client;
+      }
+      if (orbResume.needsReauth) {
+        setSessionClient(null);
+        setNeedsReauth(true);
+        setStatus("error");
+        setError("Orb session expired. Scan Orb again.");
+        return null;
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -171,7 +185,8 @@ export function useLensSession(orbSession: OrbSession | null): UseLensSessionRes
     setSessionClient(null);
     setStatus("idle");
     setError(null);
+    setNeedsReauth(false);
   }, []);
 
-  return { sessionClient, status, error, login, logout };
+  return { sessionClient, status, error, needsReauth, login, logout };
 }
