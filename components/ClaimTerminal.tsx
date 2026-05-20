@@ -27,7 +27,6 @@ import {
   buildVr303MintParams,
   formatGhoAmount,
   getNetMintCostWei,
-  getGrossMintCostWei,
   getVr303PostId,
   getVr303MintPostAction,
 } from "@/lib/vr303Action";
@@ -356,10 +355,9 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const claimButtonRef = useRef<HTMLButtonElement | null>(null);
   const total = 303;
   const orbWalletAddress = getOrbWalletAddress(orbSession);
-  const lensProfileCostWei = getGrossMintCostWei(qty);
-  const eoaCostWei = getNetMintCostWei(qty);
+  const mintCostWei = getNetMintCostWei(qty);
   const paymentSource: PaymentSource = mintDestination === "wallet" ? "eoa" : "lensProfile";
-  const estimatedCostWei = paymentSource === "lensProfile" ? lensProfileCostWei : eoaCostWei;
+  const estimatedCostWei = mintCostWei;
   const needsOrb = mintDestination !== "wallet";
 
   const { data: supplyRaw, refetch: refetchSupply } = useReadContract({
@@ -404,7 +402,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     connectedAddress: address,
     managerPermissions: lensAuthority.managerPermissions,
     balanceWei: orbBalance?.value,
-    requiredWei: lensProfileCostWei,
+    requiredWei: mintCostWei,
     needsReauth: lensNeedsReauth,
     isAuthorityLoading: lensAuthority.status === "loading",
   });
@@ -675,14 +673,14 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     }
     if (paymentSource === "lensProfile" && !lensProfilePaymentReadiness.canPay) {
       setTxStatus("error");
-      setStep(lensProfileBlockMessage(lensProfilePaymentReadiness, lensProfileCostWei));
+      setStep(lensProfileBlockMessage(lensProfilePaymentReadiness, mintCostWei));
       appendDebug("blocked: Lens profile cannot pay", {
         readiness: lensProfilePaymentReadiness,
         lensAuthority,
         connectedWallet: address,
         orbWalletAddress,
-        requiredWei: lensProfileCostWei,
-        requiredFormatted: formatGhoAmount(lensProfileCostWei),
+        requiredWei: mintCostWei,
+        requiredFormatted: formatGhoAmount(mintCostWei),
       });
       if (
         lensProfilePaymentReadiness.status === "reauth" ||
@@ -697,7 +695,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
     }
     if (paymentSource === "eoa" && paymentBalance && !hasEnoughGho) {
       setTxStatus("error");
-      setStep(`Need at least ${formatGhoAmount(eoaCostWei)} GHO on Lens.`);
+      setStep(`Need at least ${formatGhoAmount(mintCostWei)} GHO on Lens.`);
       appendDebug("blocked: payer balance too low", {
         paymentSource,
         paymentAddress,
@@ -709,8 +707,8 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         orbWalletAddress,
         orbWalletBalanceWei: orbBalance?.value,
         orbWalletBalanceFormatted: orbBalance?.formatted,
-        requiredWei: estimatedCostWei,
-        requiredFormatted: formatGhoAmount(estimatedCostWei),
+        requiredWei: mintCostWei,
+        requiredFormatted: formatGhoAmount(mintCostWei),
       });
       return;
     }
@@ -755,8 +753,8 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
           payer: address,
           receiver: address,
           quantity: qty,
-          valueWei: eoaCostWei,
-          valueFormatted: formatGhoAmount(eoaCostWei),
+          valueWei: mintCostWei,
+          valueFormatted: formatGhoAmount(mintCostWei),
         });
         if (publicClient && address) {
           await publicClient.estimateContractGas({
@@ -765,7 +763,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             functionName: "claim",
             args: [BigInt(qty), []],
             account: address,
-            value: eoaCostWei,
+            value: mintCostWei,
           });
           appendDebug("direct EOA collect gas preflight passed");
         }
@@ -774,7 +772,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
           abi: CLAIM_ABI,
           functionName: "claim",
           args: [BigInt(qty), []],
-          value: eoaCostWei,
+          value: mintCostWei,
           chainId: lensMainnet.id,
           gas: BigInt(300_000),
         });
