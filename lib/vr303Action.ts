@@ -23,6 +23,8 @@ export const VR303_MINT_POST_ACTION =
   "0x303feeD7e375080e9dBF16e6DD214122BA31A6bd" as const;
 
 export const VR303_PRICE_WEI = parseUnits("1", 18);
+export const LENS_TREASURY_FEE_BPS = 150n;
+export const BPS_DENOMINATOR = 10_000n;
 
 export const PARAM_QUANTITY = keccak256(toBytes("vr303.quantity"));
 export const PARAM_RECEIVER = keccak256(toBytes("vr303.receiver"));
@@ -60,6 +62,13 @@ export function normalizeOptionalReceiver(receiver?: string | null): Address | n
 
 export function getNetMintCostWei(quantity: number): bigint {
   return VR303_PRICE_WEI * BigInt(quantity);
+}
+
+export function getGrossMintCostWei(quantity: number): bigint {
+  const net = getNetMintCostWei(quantity);
+  const feeDenominator = BPS_DENOMINATOR - LENS_TREASURY_FEE_BPS;
+
+  return (net * BPS_DENOMINATOR + feeDenominator - 1n) / feeDenominator;
 }
 
 export function formatGhoAmount(value: bigint, fractionDigits = 4) {
