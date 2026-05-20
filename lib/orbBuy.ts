@@ -8,6 +8,7 @@ export type OrbBuyInput = {
   signer: Address;
   quantity: number;
   receiver?: Address | null;
+  accessToken?: string | null;
 };
 
 export type OrbBuyTransaction = {
@@ -75,6 +76,12 @@ export function buildOrbBuyRequest({ account, signer, quantity, receiver }: OrbB
   };
 }
 
+function getAccessTokenHeader(accessToken?: string | null) {
+  const token = accessToken?.trim();
+  if (!token) return null;
+  return token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+}
+
 function getFailureMessage(response: Response, payload: OrbBuyResponse | null) {
   if (payload?.status === "FAILED" && typeof payload.msg === "string") {
     return payload.msg;
@@ -91,9 +98,13 @@ export async function requestOrbBuyTransaction(
 ) {
   const endpoint = options.endpoint || getOrbBuyEndpoint();
   const fetchImpl = options.fetchImpl || fetch;
+  const accessTokenHeader = getAccessTokenHeader(input.accessToken);
   const response = await fetchImpl(endpoint, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(accessTokenHeader ? { "x-access-token": accessTokenHeader } : {}),
+    },
     body: JSON.stringify(buildOrbBuyRequest(input)),
   });
 

@@ -63,6 +63,12 @@ function friendlyClaimError(raw: string) {
   if (raw.toLowerCase().includes("payment-enabled manager")) {
     return "Connect the Lens profile owner or a payment-enabled manager wallet.";
   }
+  if (raw.toLowerCase().includes("expired auth")) {
+    return "Reconnect Orb to prepare profile collect.";
+  }
+  if (raw.toLowerCase().includes("authenticated signer does not match")) {
+    return "Connected wallet does not match the Orb authenticated signer.";
+  }
   if (raw.toLowerCase().includes("orb buy")) {
     return raw.slice(0, 100) || "Orb buy route failed.";
   }
@@ -387,6 +393,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             userId: orbSession.userId,
             handle: orbSession.handle,
             authenticationId: orbSession.authenticationId,
+            hasAccessToken: Boolean(orbSession.accessToken),
             processed: orbSession.processed,
             status: orbSession.status,
           }
@@ -460,6 +467,16 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       appendDebug("blocked: missing Lens profile account address", {
         orbSession,
         orbWalletAddress,
+      });
+      onConnect();
+      return;
+    }
+    if (paymentSource === "lensProfile" && !orbSession?.accessToken) {
+      setTxStatus("error");
+      setStep("Reconnect Orb to prepare profile collect.");
+      appendDebug("blocked: missing Orb access token for buy route", {
+        lensAccount: orbWalletAddress,
+        signer: address,
       });
       onConnect();
       return;
@@ -578,6 +595,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         receiver,
         quantity: qty,
         paymentSource,
+        hasAccessToken: Boolean(orbSession?.accessToken),
       });
 
       if (!walletClient) {
@@ -597,6 +615,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         signer: address,
         quantity: qty,
         receiver,
+        accessToken: orbSession?.accessToken,
       });
       appendDebug("Orb buy transaction response", {
         status: buy.payload.status,

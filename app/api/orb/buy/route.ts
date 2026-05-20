@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   const upstream = process.env.ORB_BUY_ENDPOINT?.trim() || DEFAULT_ORB_BUY_URL;
   const origin = request.headers.get("origin") ?? currentUrl.origin;
   const referer = request.headers.get("referer") ?? origin;
+  const accessToken = request.headers.get("x-access-token");
   const body = await request.text();
 
   const response = await fetch(upstream, {
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
       "content-type": request.headers.get("content-type") ?? "application/json",
       origin,
       referer,
+      ...(accessToken ? { "x-access-token": accessToken } : {}),
     },
     body,
     cache: "no-store",
