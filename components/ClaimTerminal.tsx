@@ -250,6 +250,32 @@ function getManagerPermissions(value: unknown): LensManagerPermissions | null {
   };
 }
 
+function lensProfilePaymentHint(readiness: LensProfilePaymentReadiness, requiredWei: bigint) {
+  switch (readiness.status) {
+    case "owner-ready":
+      return "[x] owner can pay";
+    case "manager-ready":
+      return "[x] payments enabled";
+    case "checking-authority":
+      return "[ ] checking permissions";
+    case "checking-balance":
+      return "[ ] checking balance";
+    case "insufficient-balance":
+      return `[ ] needs ${formatGhoAmount(requiredWei)} GHO`;
+    case "payment-disabled":
+      return "[ ] payments disabled";
+    case "not-authorized":
+      return "[ ] owner/payment manager";
+    case "connect":
+      return "[ ] connect owner/manager";
+    case "reauth":
+      return "[ ] reconnect Orb";
+    case "login":
+    default:
+      return "unavailable";
+  }
+}
+
 function lensProfileBlockMessage(readiness: LensProfilePaymentReadiness, requiredWei: bigint) {
   switch (readiness.status) {
     case "reauth":
@@ -928,12 +954,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       : mintDestination === "custom"
         ? "CUSTOM WALLET"
         : "CONNECTED WALLET";
-  const claimLaneLabel =
-    mintDestination === "wallet"
-      ? "DIRECT EOA"
-      : lensProfilePaymentReadiness.canPay
-        ? "LENS PROFILE PAY"
-        : "PROFILE PAY LOCKED";
+  const claimLaneLabel = mintDestination === "wallet" ? "DIRECT EOA" : "LENS ACTION";
   const mintUnavailable = globalMintEnabled === false || contractPaused === true;
   const customHint =
     customResolveStatus === "resolved"
@@ -947,7 +968,15 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
           : "0x or ENS";
   const mintedDisplay = minted !== null ? minted : "...";
   const pctDisplay = minted !== null ? ((minted / total) * 100).toFixed(1) : "0.0";
-  const visibleCostDisplay = formatGhoAmount(estimatedCostWei);
+  const visibleCostDisplay = formatGhoAmount(eoaCostWei);
+  const lensPaymentHint =
+    lensAuthority.status === "error"
+      ? "[ ] permission check failed"
+      : lensProfilePaymentHint(lensProfilePaymentReadiness, lensProfileCostWei);
+  const lensProfileDestinationHint =
+    orbBalance && lensProfilePaymentReadiness.canPay
+      ? `${lensPaymentHint} / ${orbBalance.formatted} GHO`
+      : lensPaymentHint;
   const lensProfileCtaBlocked =
     paymentSource === "lensProfile" &&
     (!lensProfilePaymentReadiness.canPay || lensAuthority.status === "error");
@@ -1024,7 +1053,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
               onClick={() => selectMintDestination("orb")}
             >
               LENS PROFILE
-              <span>{orbDisplay || "after Orb login"}</span>
+              <span>{lensProfileDestinationHint}</span>
             </button>
             <button
               type="button"
