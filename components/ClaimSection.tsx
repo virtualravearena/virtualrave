@@ -7,9 +7,10 @@ import type { OrbSession } from "./OrbLoginPanel";
 interface ClaimSectionProps {
   onConnect: () => void;
   orbSession: OrbSession | null;
+  onMintSuccess?: () => void;
 }
 
-export function ClaimSection({ onConnect, orbSession }: ClaimSectionProps) {
+export function ClaimSection({ onConnect, orbSession, onMintSuccess }: ClaimSectionProps) {
   return (
     <section id="claim" className="claim">
       <div className="cloud cloud-a" />
@@ -30,7 +31,7 @@ export function ClaimSection({ onConnect, orbSession }: ClaimSectionProps) {
         </p>
       </div>
       <div className="claim__grid">
-        <ClaimTerminal onConnect={onConnect} orbSession={orbSession} />
+        <ClaimTerminal onConnect={onConnect} orbSession={orbSession} onMintSuccess={onMintSuccess} />
         <ClaimSide />
         <ClaimCC0License />
       </div>
