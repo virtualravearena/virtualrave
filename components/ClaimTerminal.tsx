@@ -15,8 +15,12 @@ import { mainnet as ethMainnet } from "viem/chains";
 import { lensMainnet, CONTRACT } from "@/lib/wagmi";
 import type { OrbSession } from "./OrbLoginPanel";
 import { executePostAction } from "@lens-protocol/client/actions";
-import { evmAddress } from "@lens-protocol/client";
 import { useWalletClient } from "wagmi";
+import {
+  getLensProfilePaymentReadiness,
+  type LensManagerPermissions,
+  type LensProfilePaymentReadiness,
+} from "@/lib/claimAuthority.mjs";
 import { useLensSession } from "@/lib/useLensSession";
 import { dispatchLensResult, LensActionRevertError } from "@/lib/dispatchLensResult";
 import {
@@ -213,6 +217,14 @@ interface ClaimTerminalProps {
 type MintDestination = "orb" | "wallet" | "custom";
 type PaymentSource = "lensProfile" | "eoa";
 type CustomResolveStatus = "idle" | "resolving" | "resolved" | "error";
+type LensAuthorityStatus = "idle" | "loading" | "ready" | "error";
+
+type LensAuthorityState = {
+  status: LensAuthorityStatus;
+  ownerAddress: Address | null;
+  managerPermissions: LensManagerPermissions | null;
+  error: string | null;
+};
 
 const ensClient = createPublicClient({
   chain: ethMainnet,
@@ -224,17 +236,137 @@ function getOrbWalletAddress(session: OrbSession | null): Address | null {
   return candidate && isAddress(candidate) ? getAddress(candidate) : null;
 }
 
+function getAddressField(value: unknown): Address | null {
+  return typeof value === "string" && isAddress(value) ? getAddress(value) : null;
+}
+
+function getManagerPermissions(value: unknown): LensManagerPermissions | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  return {
+    canExecuteTransactions: record.canExecuteTransactions === true,
+    canTransferTokens: record.canTransferTokens === true,
+    canTransferNative: record.canTransferNative === true,
+  };
+}
+
+function lensProfilePaymentHint(readiness: LensProfilePaymentReadiness, requiredWei: bigint) {
+  switch (readiness.status) {
+    case "owner-ready":
+      return "[x] owner can pay";
+    case "manager-ready":
+      return "[x] payments enabled";
+    case "checking-authority":
+      return "[ ] checking permissions";
+    case "checking-balance":
+      return "[ ] checking balance";
+    case "insufficient-balance":
+      return `[ ] needs ${formatGhoAmount(requiredWei)} GHO`;
+    case "payment-disabled":
+      return "[ ] payments disabled";
+    case "not-authorized":
+      return "[ ] owner/payment manager";
+    case "connect":
+      return "[ ] connect owner/manager";
+    case "reauth":
+      return "[ ] reconnect Orb";
+    case "login":
+    default:
+      return "unavailable";
+  }
+}
+
+function lensProfileBlockMessage(readiness: LensProfilePaymentReadiness, requiredWei: bigint) {
+  switch (readiness.status) {
+    case "reauth":
+      return "Reconnect Orb to refresh Lens profile login.";
+    case "connect":
+    case "not-authorized":
+      return "Connect the Lens profile owner or a payment-enabled manager.";
+    case "payment-disabled":
+      return "Connected manager cannot spend from this Lens profile.";
+    case "checking-authority":
+      return "Checking Lens profile permissions.";
+    case "checking-balance":
+      return "Checking Lens profile GHO balance.";
+    case "insufficient-balance":
+      return `Need at least ${formatGhoAmount(requiredWei)} GHO on Lens profile.`;
+    case "login":
+      return "Login with Orb to load a Lens profile.";
+    default:
+      return "Lens profile cannot pay for this collect.";
+  }
+}
+
+function lensProfileCtaLabel(
+  readiness: LensProfilePaymentReadiness,
+  authorityStatus: LensAuthorityStatus,
+) {
+  if (authorityStatus === "error") return "CHECK LENS PERMISSIONS FAILED";
+  switch (readiness.status) {
+    case "reauth":
+      return "RECONNECT ORB TO COLLECT";
+    case "connect":
+    case "not-authorized":
+    case "payment-disabled":
+      return "CONNECT OWNER/PAYMENT MANAGER";
+    case "checking-authority":
+      return "CHECKING LENS PERMISSIONS";
+    case "checking-balance":
+      return "CHECKING LENS PROFILE BALANCE";
+    case "insufficient-balance":
+      return "ADD GHO TO LENS PROFILE";
+    default:
+      return "AUTH LENS PROFILE TO COLLECT";
+  }
+}
+
+function lensProfileCtaMini(
+  readiness: LensProfilePaymentReadiness,
+  authorityStatus: LensAuthorityStatus,
+) {
+  if (authorityStatus === "error") return "TRY AGAIN OR USE DIRECT EOA";
+  switch (readiness.status) {
+    case "owner-ready":
+      return "OWNER WALLET CAN PAY FROM LENS PROFILE";
+    case "manager-ready":
+      return "PAYMENT MANAGER CAN PAY FROM LENS PROFILE";
+    case "reauth":
+      return "SCAN QR WITH ORB AGAIN";
+    case "connect":
+    case "not-authorized":
+    case "payment-disabled":
+      return "OWNER OR MANAGER WITH PAYMENTS ENABLED";
+    case "insufficient-balance":
+      return "FUND THE LENS PROFILE ON LENS MAINNET";
+    default:
+      return "VERIFYING OWNER OR PAYMENT PERMISSIONS";
+  }
+}
+
 export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient({ chainId: lensMainnet.id });
   const publicClient = usePublicClient({ chainId: lensMainnet.id });
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
-  const { sessionClient, status: lensStatus, login: lensLogin } = useLensSession(orbSession);
+  const {
+    sessionClient,
+    status: lensStatus,
+    needsReauth: lensNeedsReauth,
+    login: lensLogin,
+  } = useLensSession(orbSession);
   const [qty, setQty] = useState(1);
   const [mintDestination, setMintDestination] = useState<MintDestination>(
     orbSession ? "orb" : "wallet",
   );
+  const [destinationTouched, setDestinationTouched] = useState(false);
+  const [lensAuthority, setLensAuthority] = useState<LensAuthorityState>({
+    status: "idle",
+    ownerAddress: null,
+    managerPermissions: null,
+    error: null,
+  });
   const [customRecipient, setCustomRecipient] = useState("");
   const [customRecipientAddress, setCustomRecipientAddress] = useState<Address | null>(null);
   const [customResolveStatus, setCustomResolveStatus] = useState<CustomResolveStatus>("idle");
@@ -292,6 +424,16 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const paymentBalance = paymentSource === "lensProfile" ? orbBalance : payerBalance;
   const paymentAddress = paymentSource === "lensProfile" ? orbWalletAddress : address;
   const hasEnoughGho = paymentBalance ? paymentBalance.value >= estimatedCostWei : true;
+  const lensProfilePaymentReadiness = getLensProfilePaymentReadiness({
+    profileAddress: orbWalletAddress,
+    ownerAddress: lensAuthority.ownerAddress,
+    connectedAddress: address,
+    managerPermissions: lensAuthority.managerPermissions,
+    balanceWei: orbBalance?.value,
+    requiredWei: lensProfileCostWei,
+    needsReauth: lensNeedsReauth,
+    isAuthorityLoading: lensAuthority.status === "loading",
+  });
 
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash ?? undefined,
@@ -324,10 +466,76 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   }, [txConfirmed, txHash, refetchSupply]);
 
   useEffect(() => {
+    if (orbWalletAddress && !destinationTouched && mintDestination !== "orb") {
+      setMintDestination("orb");
+    }
     if (!orbWalletAddress && mintDestination === "orb") {
       setMintDestination("wallet");
     }
-  }, [mintDestination, orbWalletAddress]);
+  }, [destinationTouched, mintDestination, orbWalletAddress]);
+
+  useEffect(() => {
+    if (!orbWalletAddress) {
+      setLensAuthority({
+        status: "idle",
+        ownerAddress: null,
+        managerPermissions: null,
+        error: null,
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    setLensAuthority((previous) => ({
+      status: "loading",
+      ownerAddress: previous.ownerAddress,
+      managerPermissions: null,
+      error: null,
+    }));
+
+    const params = new URLSearchParams({ account: orbWalletAddress });
+    if (address) {
+      params.set("manager", address);
+    }
+
+    fetch(`/api/lens/account-authority?${params.toString()}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+        if (!response.ok) {
+          throw new Error(typeof body?.error === "string" ? body.error : "Lens authority lookup failed.");
+        }
+        return body;
+      })
+      .then((body) => {
+        if (controller.signal.aborted) return;
+        setLensAuthority({
+          status: "ready",
+          ownerAddress: getAddressField(body?.ownerAddress),
+          managerPermissions: getManagerPermissions(body?.managerPermissions),
+          error: null,
+        });
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setLensAuthority({
+          status: "error",
+          ownerAddress: null,
+          managerPermissions: null,
+          error: err instanceof Error ? err.message : "Lens authority lookup failed.",
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [address, orbWalletAddress]);
+
+  function selectMintDestination(nextDestination: MintDestination) {
+    setDestinationTouched(true);
+    setMintDestination(nextDestination);
+  }
 
   useEffect(() => {
     const value = customRecipient.trim();
@@ -394,7 +602,10 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         : null,
       orbWalletAddress,
       lensStatus,
+      lensNeedsReauth,
       hasSessionClient: Boolean(sessionClient),
+      lensAuthority,
+      lensProfilePaymentReadiness,
       connectedWalletBalanceWei: payerBalance?.value,
       connectedWalletBalanceFormatted: payerBalance?.formatted,
       orbWalletBalanceWei: orbBalance?.value,
@@ -479,7 +690,38 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       });
       return;
     }
-    if (paymentBalance && !hasEnoughGho) {
+    if (paymentSource === "lensProfile" && lensAuthority.status === "error") {
+      setTxStatus("error");
+      setStep("Could not verify Lens profile payment permissions.");
+      appendDebug("blocked: Lens authority lookup failed", {
+        lensAuthority,
+        lensProfilePaymentReadiness,
+      });
+      return;
+    }
+    if (paymentSource === "lensProfile" && !lensProfilePaymentReadiness.canPay) {
+      setTxStatus("error");
+      setStep(lensProfileBlockMessage(lensProfilePaymentReadiness, lensProfileCostWei));
+      appendDebug("blocked: Lens profile cannot pay", {
+        readiness: lensProfilePaymentReadiness,
+        lensAuthority,
+        connectedWallet: address,
+        orbWalletAddress,
+        requiredWei: lensProfileCostWei,
+        requiredFormatted: formatGhoAmount(lensProfileCostWei),
+      });
+      if (
+        lensProfilePaymentReadiness.status === "reauth" ||
+        lensProfilePaymentReadiness.status === "login" ||
+        lensProfilePaymentReadiness.status === "connect" ||
+        lensProfilePaymentReadiness.status === "not-authorized" ||
+        lensProfilePaymentReadiness.status === "payment-disabled"
+      ) {
+        onConnect();
+      }
+      return;
+    }
+    if (paymentSource === "eoa" && paymentBalance && !hasEnoughGho) {
       setTxStatus("error");
       setStep(`Need at least ${formatGhoAmount(eoaCostWei)} GHO on Lens.`);
       appendDebug("blocked: payer balance too low", {
@@ -506,6 +748,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         lensAccount: orbWalletAddress,
         signer: address,
         paymentSource,
+        lensProfilePaymentReadiness,
       });
       const s = await lensLogin();
       appendDebug("lens login completed", {
@@ -579,10 +822,15 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         customRecipient,
         customRecipientAddress,
       });
-      const receiver = mintDestination === "custom" ? customRecipientAddress : orbWalletAddress;
+      const receiver =
+        mintDestination === "custom"
+          ? customRecipientAddress
+          : mintDestination === "orb"
+            ? orbWalletAddress
+            : null;
       const params = buildVr303MintParams({
         quantity: qty,
-        receiver: mintDestination === "custom" ? receiver : undefined,
+        receiver: receiver ?? undefined,
       });
       const post = getVr303PostId();
       const actionAddress = getVr303MintPostAction();
@@ -597,7 +845,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
         note:
           mintDestination === "custom"
             ? "Custom recipient is sent as receiver param through Lens action."
-            : "Receiver param intentionally omitted; Lens action should use the executing Lens account.",
+            : "Lens profile address is sent as receiver even when the connected wallet is only a payment-enabled manager.",
         params,
       });
 
@@ -641,7 +889,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
           connectedWallet: address,
         });
         setTxStatus("error");
-        setStep("Connect the admin/controller wallet to sign this Lens action.");
+        setStep("Connect the Lens profile owner or payment manager to sign this action.");
         onConnect();
         return;
       }
@@ -721,6 +969,17 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
   const mintedDisplay = minted !== null ? minted : "...";
   const pctDisplay = minted !== null ? ((minted / total) * 100).toFixed(1) : "0.0";
   const visibleCostDisplay = formatGhoAmount(eoaCostWei);
+  const lensPaymentHint =
+    lensAuthority.status === "error"
+      ? "[ ] permission check failed"
+      : lensProfilePaymentHint(lensProfilePaymentReadiness, lensProfileCostWei);
+  const lensProfileDestinationHint =
+    orbBalance && lensProfilePaymentReadiness.canPay
+      ? `${lensPaymentHint} / ${orbBalance.formatted} GHO`
+      : lensPaymentHint;
+  const lensProfileCtaBlocked =
+    paymentSource === "lensProfile" &&
+    (!lensProfilePaymentReadiness.canPay || lensAuthority.status === "error");
 
   return (
     <div className="win">
@@ -791,15 +1050,15 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
               type="button"
               className={mintDestination === "orb" ? "is-active" : ""}
               disabled={!orbWalletAddress}
-              onClick={() => setMintDestination("orb")}
+              onClick={() => selectMintDestination("orb")}
             >
               LENS PROFILE
-              <span>{orbBalance ? `${orbBalance.formatted} GHO` : orbDisplay || "unavailable"}</span>
+              <span>{lensProfileDestinationHint}</span>
             </button>
             <button
               type="button"
               className={mintDestination === "wallet" ? "is-active" : ""}
-              onClick={() => setMintDestination("wallet")}
+              onClick={() => selectMintDestination("wallet")}
             >
               CONNECTED WALLET
               <span>{payerBalance ? `${payerBalance.formatted} GHO` : walletDisplay || "after connect"}</span>
@@ -807,7 +1066,7 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
             <button
               type="button"
               className={mintDestination === "custom" ? "is-active" : ""}
-              onClick={() => setMintDestination("custom")}
+              onClick={() => selectMintDestination("custom")}
             >
               CUSTOM WALLET
               <span>{customHint}</span>
@@ -879,6 +1138,8 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
                 ? "LOGIN WITH ORB TO COLLECT"
                 : paymentSource === "eoa" && !isConnected
                 ? "CONNECT WALLET TO COLLECT"
+                : lensProfileCtaBlocked
+                ? lensProfileCtaLabel(lensProfilePaymentReadiness, lensAuthority.status)
                 : paymentSource === "lensProfile" && !sessionClient
                 ? "AUTH LENS PROFILE TO COLLECT"
                 : `COLLECT VR 303 x 0${qty} TO ${destinationLabel}`}
@@ -893,8 +1154,10 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
                   ? "SCAN QR WITH ORB  THEN SIGN ON LENS"
                   : paymentSource === "eoa" && !isConnected
                   ? "CONNECT A WALLET ON LENS MAINNET"
+                  : lensProfileCtaBlocked
+                  ? lensProfileCtaMini(lensProfilePaymentReadiness, lensAuthority.status)
                   : paymentSource === "lensProfile" && !sessionClient
-                  ? "USES ORB TOKENS FIRST, ADMIN WALLET ONLY IF NEEDED"
+                  ? lensProfileCtaMini(lensProfilePaymentReadiness, lensAuthority.status)
                   : `${visibleCostDisplay} GHO  DESTINATION ${recipientDisplay}`}
               </span>
             </span>
