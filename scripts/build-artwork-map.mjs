@@ -39,7 +39,7 @@ ${body}
 };
 
 export function getVr303Artwork(tokenId: number): string | undefined {
-  return VR303_TOKEN_IMAGES[tokenId];
+  return VR303_TOKEN_IMAGES[tokenId + 1];
 }
 `;
 

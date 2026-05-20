@@ -168,7 +168,7 @@ function normalizeCollectors(collectors: CollectorRecord[]): CollectorRecord[] {
 
 async function scanAllOwners(): Promise<CollectorRecord[]> {
   const client = makeClient();
-  const ids = Array.from({ length: MAX_SUPPLY }, (_, i) => i + 1);
+  const ids = Array.from({ length: MAX_SUPPLY }, (_, i) => i);
   const BATCH = 25;
   const collectors: CollectorRecord[] = [];
   for (let i = 0; i < ids.length; i += BATCH) {

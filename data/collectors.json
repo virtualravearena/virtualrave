@@ -31,9 +31,45 @@
     {
       "tokenId": 7,
       "owner": "0x72423fe5168185aFB26390B5B9709aB58d20e3D8"
+    },
+    {
+      "tokenId": 8,
+      "owner": "0x061294782b7C73a675cF54124853c8133e3463FC"
+    },
+    {
+      "tokenId": 9,
+      "owner": "0x061294782b7C73a675cF54124853c8133e3463FC"
+    },
+    {
+      "tokenId": 10,
+      "owner": "0xf0198A8EAAF8D9C9527D628aFA0beAbE674169A5"
+    },
+    {
+      "tokenId": 11,
+      "owner": "0xf0198A8EAAF8D9C9527D628aFA0beAbE674169A5"
+    },
+    {
+      "tokenId": 12,
+      "owner": "0xf6Bc417BE86D8fd506c216c33C6fcB4B720c3438"
+    },
+    {
+      "tokenId": 13,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 14,
+      "owner": "0xFEBC231959550fFecd1AD1Ae22A3d6Bb55471B6a"
+    },
+    {
+      "tokenId": 15,
+      "owner": "0xEda3E353Bf4A35A40074D443CBbc7B3194e4cb9A"
+    },
+    {
+      "tokenId": 16,
+      "owner": "0x4Fd8A2C1Fc2ECF37B97201333D516E4E17F7EF11"
     }
   ],
-  "totalClaimed": 8,
-  "fetchedAt": 1779254683795,
+  "totalClaimed": 17,
+  "fetchedAt": 1779293226744,
   "seeded": true
 }
