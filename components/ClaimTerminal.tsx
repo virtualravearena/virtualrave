@@ -583,7 +583,17 @@ export function ClaimTerminal({ onConnect, orbSession }: ClaimTerminalProps) {
       setTxStatus("error");
       setStep("Reconnect Orb to collect with Lens profile.");
       appendDebug("blocked: missing Lens profile account address", {
-        orbSession,
+        orbSession: orbSession
+          ? {
+              account: orbSession.account,
+              userId: orbSession.userId,
+              handle: orbSession.handle,
+              authenticationId: orbSession.authenticationId,
+              hasAccessToken: Boolean(orbSession.accessToken),
+              processed: orbSession.processed,
+              status: orbSession.status,
+            }
+          : null,
         orbWalletAddress,
       });
       onConnect();
