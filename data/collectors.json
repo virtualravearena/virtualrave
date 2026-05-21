@@ -71,9 +71,77 @@
     {
       "tokenId": 17,
       "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 18,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 19,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 20,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 21,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 22,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 23,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 24,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 25,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 26,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 27,
+      "owner": "0xEB1F379c1aCeeCDd3A52CcbE856a7872475b31cB"
+    },
+    {
+      "tokenId": 28,
+      "owner": "0xD8A713bB1dE35eD30EAC5Bd01352ff678C7aF69D"
+    },
+    {
+      "tokenId": 29,
+      "owner": "0xD8A713bB1dE35eD30EAC5Bd01352ff678C7aF69D"
+    },
+    {
+      "tokenId": 30,
+      "owner": "0x73ef51128aa789fd991039F2E9c7a80A41D4B4b2"
+    },
+    {
+      "tokenId": 31,
+      "owner": "0x3056f08AC40eC5F28B1F7EF33d1020d2AED74fdF"
+    },
+    {
+      "tokenId": 32,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 33,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
+    },
+    {
+      "tokenId": 34,
+      "owner": "0xCa4c02922C98b58F9b341D41540Bf98850d3Df78"
     }
   ],
-  "totalClaimed": 18,
-  "fetchedAt": 1779315665969,
+  "totalClaimed": 35,
+  "fetchedAt": 1779396072042,
   "seeded": true
 }
