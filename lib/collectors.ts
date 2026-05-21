@@ -257,10 +257,34 @@ export async function readCollectors(): Promise<CollectorsResponse> {
 }
 
 export async function refreshFromChain(): Promise<CollectorsResponse> {
-  const normalized = await readCollectorsFromTransferLogs();
+  const client = makeClient();
+  const totalClaimed = await readTotalClaimed(client);
+  const ids = Array.from({ length: totalClaimed }, (_, i) => i);
+  const BATCH = 25;
+  const collectors: CollectorRecord[] = [];
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const slice = ids.slice(i, i + BATCH);
+    const results = await Promise.all(
+      slice.map(async (tokenId) => {
+        try {
+          const owner = await client.readContract({
+            address: SERVER_CONTRACT,
+            abi: OWNER_OF_ABI,
+            functionName: "ownerOf",
+            args: [BigInt(tokenId)],
+          });
+          return { tokenId, owner: owner as Address };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    for (const r of results) if (r) collectors.push(r);
+  }
+  const normalized = normalizeCollectors(collectors);
   const nextState = {
     collectors: normalized,
-    totalClaimed: normalized.length,
+    totalClaimed,
     fetchedAt: Date.now(),
     seeded: true,
   };
@@ -269,7 +293,7 @@ export async function refreshFromChain(): Promise<CollectorsResponse> {
   const metadataByEdition = await readMetadataJson();
   return {
     collectors: enrichCollectors(normalized, metadataByEdition),
-    totalClaimed: normalized.length,
+    totalClaimed,
     fetchedAt: nextState.fetchedAt,
   };
 }
